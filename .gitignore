@@ -19,5 +19,22 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# virtual machine crash logs
 hs_err_pid*
+
+# Local build output
+out/
+build/
+target/
+
+# Editor and document temporary files
+.idea/
+*.iml
+~$*
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Personal summaries stay local and must not be uploaded
+personal-notes/
+个人日志/
