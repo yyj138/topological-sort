@@ -1,8 +1,8 @@
-package topo.model;
+package model;
 
 import java.util.Objects;
 
-// 有向边（A 包桩，T-A1）
+// 有向边（A 包桩，T-A1）：起点 -> 终点
 public class Edge {
 
     private final String from;
@@ -19,17 +19,9 @@ public class Edge {
         }
     }
 
-    public String getFrom() {
-        return from;
-    }
-
-    public String getTo() {
-        return to;
-    }
-
-    public boolean isSelfLoop() {
-        return from.equals(to);
-    }
+    public String getFrom() { return from; }
+    public String getTo() { return to; }
+    public boolean isSelfLoop() { return from.equals(to); }
 
     @Override
     public boolean equals(Object o) {
@@ -40,12 +32,8 @@ public class Edge {
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(from, to);
-    }
+    public int hashCode() { return Objects.hash(from, to); }
 
     @Override
-    public String toString() {
-        return from + " -> " + to;
-    }
+    public String toString() { return from + " -> " + to; }
 }

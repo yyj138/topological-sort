@@ -1,13 +1,13 @@
-package topo.parser;
+package io;
 
-// 解析错误（D 包桩，T-D1/T-D3）
-public class ParseError {
+// 解析问题（契约 §六）：错误或警告，含行号与原因
+public class ParseIssue {
 
     private final int lineNo;
     private final String reason;
     private final String content;
 
-    public ParseError(int lineNo, String reason, String content) {
+    public ParseIssue(int lineNo, String reason, String content) {
         this.lineNo = lineNo;
         this.reason = reason;
         this.content = content == null ? "" : content;

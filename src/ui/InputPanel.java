@@ -1,9 +1,11 @@
-package topo.view;
+package ui;
 
-import topo.util.UIStyle;
-import topo.parser.DataParser;
-import topo.parser.FileManager;
-import topo.parser.ParseResult;
+import io.DataParser;
+import io.FileManager;
+import io.ParseResult;
+import model.Edge;
+import model.Graph;
+import util.UIStyle;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -25,6 +27,7 @@ import java.awt.Component;
 import java.awt.event.ActionEvent;
 
 // 输入面板（T-B2）：文本区+表格视图，载入/保存/同步/增删行按钮
+// 按契约 §六：DataParser 为实例方法 parse()，直接返回 Graph + 问题清单
 public class InputPanel extends JPanel {
 
     private final JTextArea textArea = new JTextArea();
@@ -83,7 +86,7 @@ public class InputPanel extends JPanel {
         textArea.setBackground(UIStyle.BG_PANEL);
         textArea.setForeground(UIStyle.FG_PRIMARY);
         textArea.setLineWrap(false);
-        textArea.setText("# 输入格式示例：\n<a,b>\n<c,d>\n<a,c>\n");
+        textArea.setText("# 请按 <a,b> 格式输入数据，每行一条关系，# 开头为注释\n# 示例：\n<a,b>\n<c,d>\n<a,c>\n");
         JScrollPane textScroll = new JScrollPane(textArea);
         JPanel textPanel = new JPanel(new BorderLayout());
         textPanel.setBackground(UIStyle.BG_PANEL);
@@ -193,10 +196,14 @@ public class InputPanel extends JPanel {
         UIStyle.styleButton(btnSaveData);
     }
 
+    // 按契约 §六：DataParser.parse() 返回 ParseResult，从 getGraph().getEdges() 取边
     public void syncTextToTable() {
-        ParseResult result = DataParser.parse(textArea.getText());
+        DataParser parser = new DataParser();
+        ParseResult result = parser.parse(textArea.getText());
         tableModel.setRowCount(0);
-        for (topo.model.Edge edge : result.getEdges()) {
+        Graph graph = result.getGraph();
+        if (graph == null) return;
+        for (Edge edge : graph.getEdges()) {
             tableModel.addRow(new Object[]{edge.getFrom(), edge.getTo()});
         }
     }

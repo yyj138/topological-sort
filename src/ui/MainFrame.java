@@ -1,6 +1,7 @@
-package topo.view;
+package ui;
 
-import topo.util.UIStyle;
+import util.UIStyle;
+import view.GraphPanel;
 
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
@@ -193,18 +194,8 @@ public class MainFrame extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame();
-            frame.getMiExit().addActionListener(e -> System.exit(0));
-            frame.getMiAbout().addActionListener(e ->
-                    javax.swing.JOptionPane.showMessageDialog(frame,
-                            "拓扑排序应用软件\nJava Swing 实现\n（B 模块 GUI 演示版本）",
-                            "关于", javax.swing.JOptionPane.INFORMATION_MESSAGE));
-            frame.getMiHelp().addActionListener(e ->
-                    javax.swing.JOptionPane.showMessageDialog(frame,
-                            "1. 输入或载入 <a,b> 格式的关系数据\n"
-                                    + "2. 点击「计算」按钮\n"
-                                    + "3. 在右侧图形区查看关系图与拓扑排序结果\n"
-                                    + "4. 支持导出图片与结果",
-                            "使用说明", javax.swing.JOptionPane.INFORMATION_MESSAGE));
+            // 安装控制器，连接菜单/按钮事件与计算流程
+            new MainController(frame);
             frame.setVisible(true);
         });
     }

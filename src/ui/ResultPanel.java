@@ -1,6 +1,6 @@
-package topo.view;
+package ui;
 
-import topo.util.UIStyle;
+import util.UIStyle;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;

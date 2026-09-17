@@ -1,4 +1,4 @@
-package topo.util;
+package util;
 
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;

@@ -1,9 +1,8 @@
-package topo.view;
+package view;
 
-import topo.algorithm.CycleResult;
-import topo.model.Edge;
-import topo.model.Graph;
-import topo.model.Vertex;
+import model.Edge;
+import model.Graph;
+import model.Vertex;
 
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
@@ -21,14 +20,19 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-// 关系图绘制（C 包桩，T-C1~T-C5）：简单圆形+箭头渲染，便于 B 独立运行
+// 关系图绘制（C 包桩，T-C1~T-C5）：按契约 §七
+// setGraph 接收关系图；setHighlightedCycle 标记环路径节点与边
+// exportPNG 导出完整关系图
 public class GraphPanel extends JPanel {
 
     private Graph graph;
-    private CycleResult cycleResult;
+    private List<String> highlightedCycle = new ArrayList<>();
+    // 选中序列高亮：B/C 另行对接（契约 §七未定义）
     private List<String> selectedOrder = new ArrayList<>();
     private final Map<String, Point> nodePositions = new HashMap<>();
 
@@ -37,19 +41,22 @@ public class GraphPanel extends JPanel {
         setPreferredSize(new Dimension(600, 500));
     }
 
+    // 契约 §七：接收关系图
     public void setGraph(Graph graph) {
         this.graph = graph;
-        this.selectedOrder.clear();
-        this.cycleResult = null;
+        this.highlightedCycle = new ArrayList<>();
+        this.selectedOrder = new ArrayList<>();
         layoutNodes();
         repaint();
     }
 
-    public void setCycleHighlight(CycleResult cycleResult) {
-        this.cycleResult = cycleResult;
+    // 契约 §七：环高亮，接收闭合节点序列如 [A,B,C,A]
+    public void setHighlightedCycle(List<String> closedCycle) {
+        this.highlightedCycle = closedCycle == null ? new ArrayList<>() : new ArrayList<>(closedCycle);
         repaint();
     }
 
+    // B/C 另行对接：选中序列高亮（不在契约中，由 C 最终确认）
     public void setSelectedOrder(List<String> order) {
         this.selectedOrder = order == null ? new ArrayList<>() : new ArrayList<>(order);
         repaint();
@@ -57,8 +64,8 @@ public class GraphPanel extends JPanel {
 
     public void clear() {
         this.graph = null;
-        this.selectedOrder.clear();
-        this.cycleResult = null;
+        this.highlightedCycle = new ArrayList<>();
+        this.selectedOrder = new ArrayList<>();
         nodePositions.clear();
         repaint();
     }
@@ -67,7 +74,7 @@ public class GraphPanel extends JPanel {
     private void layoutNodes() {
         nodePositions.clear();
         if (graph == null || graph.isEmpty()) return;
-        int n = graph.vertexCount();
+        int n = graph.getVertexCount();
         int radius = Math.min(getWidth(), getHeight()) / 2 - 60;
         if (radius < 80) radius = 80;
         int cx = getWidth() / 2;
@@ -91,7 +98,7 @@ public class GraphPanel extends JPanel {
             drawEmptyHint(g2);
             return;
         }
-        if (nodePositions.isEmpty() || nodePositions.size() != graph.vertexCount()) {
+        if (nodePositions.isEmpty() || nodePositions.size() != graph.getVertexCount()) {
             layoutNodes();
         }
         drawEdges(g2);
@@ -109,7 +116,7 @@ public class GraphPanel extends JPanel {
     private void drawEdges(Graphics2D g2) {
         Stroke solid = new BasicStroke(1.5f);
         Stroke cycleStroke = new BasicStroke(2.5f);
-        java.util.Set<String> cycleEdges = collectCycleEdges();
+        Set<String> cycleEdges = collectCycleEdges();
 
         for (Edge e : graph.getEdges()) {
             Point from = nodePositions.get(e.getFrom());
@@ -124,7 +131,7 @@ public class GraphPanel extends JPanel {
     }
 
     private void drawNodes(Graphics2D g2) {
-        java.util.Set<String> cycleNodes = collectCycleNodes();
+        Set<String> cycleNodes = new HashSet<>(highlightedCycle);
         for (Vertex v : graph.getVertices()) {
             Point p = nodePositions.get(v.getName());
             if (p == null) continue;
@@ -179,24 +186,15 @@ public class GraphPanel extends JPanel {
         g2.fillPolygon(xs, ys, 3);
     }
 
-    private java.util.Set<String> collectCycleEdges() {
-        java.util.Set<String> set = new java.util.HashSet<>();
-        if (cycleResult == null || !cycleResult.hasCycle()) return set;
-        List<String> path = cycleResult.getCyclePath();
-        for (int i = 0; i + 1 < path.size(); i++) {
-            set.add(path.get(i) + "|" + path.get(i + 1));
+    private Set<String> collectCycleEdges() {
+        Set<String> set = new HashSet<>();
+        for (int i = 0; i + 1 < highlightedCycle.size(); i++) {
+            set.add(highlightedCycle.get(i) + "|" + highlightedCycle.get(i + 1));
         }
         return set;
     }
 
-    private java.util.Set<String> collectCycleNodes() {
-        java.util.Set<String> set = new java.util.HashSet<>();
-        if (cycleResult == null || !cycleResult.hasCycle()) return set;
-        set.addAll(cycleResult.getCyclePath());
-        return set;
-    }
-
-    // 导出画布为 PNG（C 包 T-C5/T-C8 调用）
+    // 契约 §七：导出完整关系图 PNG
     public void exportPNG(File file) throws IOException {
         int w = Math.max(getWidth(), 600);
         int h = Math.max(getHeight(), 500);

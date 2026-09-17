@@ -1,32 +1,33 @@
-package topo.algorithm;
+package algorithm;
 
-import topo.model.Graph;
-import topo.model.Vertex;
+import model.Graph;
+import model.Vertex;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-// 环检测（A 包桩，T-A4）：Kahn 计数法 + DFS 三色标记定位环路径
+// 环检测（A 包桩，T-A4）：按契约 §五
+// findCycle 返回空列表表示无环；有环返回首尾相同的闭合序列如 [A,B,C,A]
+// 自环返回 [A,A]
 public class CycleDetector {
 
-    public static boolean hasCycle(Graph graph) {
-        return detect(graph).hasCycle();
-    }
+    public static List<String> findCycle(Graph graph) {
+        if (graph == null || graph.isEmpty()) return Collections.emptyList();
 
-    public static CycleResult detect(Graph graph) {
-        if (graph == null || graph.isEmpty()) return CycleResult.noCycle();
-        boolean kahnHasCycle = TopologicalSolver.kahnSort(graph).size() < graph.vertexCount();
-        if (!kahnHasCycle) return CycleResult.noCycle();
-        return new CycleResult(true, findCycleByDfs(graph));
-    }
+        // 先用 Kahn 计数法快速判定
+        TopoResult kahn = TopologicalSolver.kahnSort(graph);
+        if (!kahn.hasCycle()) return Collections.emptyList();
 
-    // DFS 三色标记：0=未访问, 1=访问中, 2=已完成
-    private static List<String> findCycleByDfs(Graph graph) {
-        java.util.Map<String, Integer> color = new java.util.HashMap<>();
-        java.util.Map<String, String> parent = new java.util.HashMap<>();
+        // DFS 三色标记定位环路径：0=未访问, 1=访问中, 2=已完成
+        Map<String, Integer> color = new HashMap<>();
+        Map<String, String> parent = new HashMap<>();
         for (Vertex v : graph.getVertices()) color.put(v.getName(), 0);
+
         for (Vertex v : graph.getVertices()) {
             if (color.get(v.getName()) == 0) {
                 List<String> cycle = dfsVisit(graph, v.getName(), color, parent, null);
@@ -37,13 +38,13 @@ public class CycleDetector {
     }
 
     private static List<String> dfsVisit(Graph graph, String u,
-                                         java.util.Map<String, Integer> color,
-                                         java.util.Map<String, String> parent,
+                                         Map<String, Integer> color,
+                                         Map<String, String> parent,
                                          String fromParent) {
         color.put(u, 1);
         Vertex v = graph.getVertex(u);
         if (v != null) {
-            for (String next : v.getOutEdges()) {
+            for (String next : v.getSuccessors()) {
                 int c = color.getOrDefault(next, 0);
                 if (c == 0) {
                     parent.put(next, u);
@@ -58,7 +59,8 @@ public class CycleDetector {
         return null;
     }
 
-    private static List<String> buildCyclePath(java.util.Map<String, String> parent,
+    // 从 parent 链重构环路径：start -> ... -> end -> start
+    private static List<String> buildCyclePath(Map<String, String> parent,
                                                 String start, String end) {
         java.util.LinkedList<String> path = new java.util.LinkedList<>();
         path.addFirst(end);
@@ -70,6 +72,6 @@ public class CycleDetector {
             path.addFirst(cur);
         }
         path.addLast(start);
-        return path;
+        return new ArrayList<>(path);
     }
 }

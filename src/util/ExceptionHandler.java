@@ -1,12 +1,13 @@
-package topo.util;
+package util;
 
-import topo.parser.ParseError;
+import io.ParseIssue;
 
 import javax.swing.JOptionPane;
 import java.awt.Component;
 import java.util.List;
 
 // 异常处理工具类（T-B5）：统一弹窗、中文消息、行号定位
+// 按契约 §六：解析问题统一为 ParseIssue，区分 errors（阻塞）与 warnings（非阻塞）
 public final class ExceptionHandler {
 
     private ExceptionHandler() {}
@@ -19,21 +20,31 @@ public final class ExceptionHandler {
         showError(parent, "第 " + lineNo + " 行：" + message);
     }
 
-    public static void showParseErrors(Component parent, List<ParseError> errors) {
-        if (errors == null || errors.isEmpty()) {
-            showInfo(parent, "无错误");
+    // 阻塞性解析错误清单：阻断计算流程时展示
+    public static void showParseIssues(Component parent, List<ParseIssue> issues, String title) {
+        if (issues == null || issues.isEmpty()) {
+            showInfo(parent, "无问题");
             return;
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("共发现 ").append(errors.size()).append(" 处错误：\n\n");
-        int show = Math.min(errors.size(), 20);
+        sb.append("共发现 ").append(issues.size()).append(" 处问题：\n\n");
+        int show = Math.min(issues.size(), 20);
         for (int i = 0; i < show; i++) {
-            sb.append(errors.get(i).toString()).append("\n");
+            sb.append(issues.get(i).toString()).append("\n");
         }
-        if (errors.size() > show) {
-            sb.append("... 共 ").append(errors.size()).append(" 条，仅显示前 ").append(show).append(" 条");
+        if (issues.size() > show) {
+            sb.append("... 共 ").append(issues.size()).append(" 条，仅显示前 ").append(show).append(" 条");
         }
-        JOptionPane.showMessageDialog(parent, sb.toString(), "数据校验错误", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(parent, sb.toString(), title, JOptionPane.ERROR_MESSAGE);
+    }
+
+    public static void showParseErrors(Component parent, List<ParseIssue> errors) {
+        showParseIssues(parent, errors, "数据校验错误");
+    }
+
+    public static void showParseWarnings(Component parent, List<ParseIssue> warnings) {
+        if (warnings == null || warnings.isEmpty()) return;
+        showParseIssues(parent, warnings, "数据校验警告");
     }
 
     public static void showWarning(Component parent, String message) {
