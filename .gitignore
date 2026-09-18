@@ -35,5 +35,7 @@ target/
 .DS_Store
 Thumbs.db
 
-# Legacy IntelliJ project folder (content moved into src/ and docs/)
-topo-sort/
+# Course reference materials (not deliverables)
+*.pdf
+*模板.doc
+会议记录-模板.doc

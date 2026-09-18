@@ -1,12 +1,12 @@
 # 拓扑排序应用软件 详细设计报告（GUI 部分）
 
-本报告由组员 B 编写，对应 GUI 主框架与交互控制部分（任务 T-B1 ~ T-B8）的详细设计，属于项目 CST4823A 高级算法原理实践，指导教师廖海泳 / 陈银冬。报告描述界面布局、事件处理流程、GUI 类结构与调用关系。文档版本 V1.1，更新日期 2026 年 9 月 18 日：按 9 月 17 日晚会议结论与 dev-b 分支实际代码重写，解析环节直接复用组员 D 的正式 DataParser，不再保留任何桩类；算法层接口仍与 main 分支冻结的接口契约 V1.0 保持一致（A 按会议结论适配的新版契约尚未合入 main，合入后仅需调整建图适配层）。
+本报告由组员 B 编写，对应 GUI 主框架与交互控制部分（任务 T-B1 ~ T-B8）的详细设计，属于项目 CST4823A 高级算法原理实践，指导教师廖海泳 / 陈银冬。报告描述界面布局、事件处理流程、GUI 类结构与调用关系。文档版本 V1.2，更新日期 2026 年 9 月 18 日：B 侧对接方式按跨模块接口契约 V1.0 重写——`MainController` 与 `InputPanel` 不再通过 `DataParser.Edge` 边列表手动建图，改为直接调用 `ParseResult.getGraph()` 取得 `model.Graph`；问题类型由 `DataParser.ParseError` 升级为顶层 `io.ParseIssue`，区分 `getErrors()`（中止）与 `getWarnings()`（提示）。`DataParser.parse` 按契约为实例方法，B 持有 `new DataParser()` 实例调用。V1.2 定稿时 io 包采用 A 在 HEAD 中提供的 T-D1 契约桩（`DataParser` + 顶层 `ParseResult` / `ParseIssue`），全量 `-encoding UTF-8` 编译零错误；`ParseIssue` 实际访问方法为 `getLineNo() / getReason() / getContent()`，待 D 交付正式解析器时保持这一签名即可无缝替换。V1.1 中 §7.3 记录的"InputValidator 规则不一致"与"A 新版契约未合入"两项遗留由此关闭。
 
 ## 一、设计概述
 
 ### 1.1 设计目标
 
-本详细设计报告针对 GUI 主框架与交互控制部分（组员 B 任务 T-B1 ~ T-B8），描述界面布局、事件处理流程、GUI 类结构与调用关系，作为编码实现与现场验收的直接依据。V1.1 中描述的全部类、方法签名、流程与常量均与 dev-b 分支源码一致。
+本详细设计报告针对 GUI 主框架与交互控制部分（组员 B 任务 T-B1 ~ T-B8），描述界面布局、事件处理流程、GUI 类结构与调用关系，作为编码实现与现场验收的直接依据。V1.2 中描述的全部类、方法签名、流程与常量均与 dev-b 分支源码一致，并与跨模块接口契约 V1.0 完全对齐。
 
 ### 1.2 设计原则
 
@@ -23,13 +23,13 @@
 - GUI 框架：Swing；
 - 源码编码：UTF-8 无 BOM，编译必须带 `-encoding UTF-8`；
 - 中文字体：界面字体使用"微软雅黑"，文本区/结果列表使用逻辑字体 Font.MONOSPACED（物理字体 Consolas 不含中文字形会把中文渲染成方块，逻辑字体可自动回退中文字体）；
-- 接口契约：算法层遵循契约 V1.0（kahnSort / enumerate / findCycle），解析层遵循 D 的 DataParser 正式 API（9.17 会议指定标准）；
+- 接口契约：算法层与解析层均严格遵循契约 V1.0——B 直接调用 `ParseResult.getGraph()` 取得 `model.Graph`，不再在 B 侧建图；问题类型 `io.ParseIssue`、解析器 `io.DataParser` 均按契约交付；
 - 画布：本期为静态画布（环形布局 + 环标红），分层布局与悬停/点击等动态交互按会议决议延后由 C 迭代。
 
 ### 1.4 9.17 会议决议对 GUI 的影响
 
-1. D 的边列表解析器为项目标准，B 直接复用，删除 B 侧全部解析桩；
-2. 解析结果以"边列表 + 自环列表 + 错误清单"表达，B 据此调用 Graph.addEdge 建图；
+1. D 的解析器为项目标准入口，B 直接复用，删除 B 侧全部解析桩；
+2. 解析结果按契约 V1.0 §6 以"Graph + 错误清单 + 警告清单"表达，B 通过 `ParseResult.getGraph()` 直接取得 `model.Graph`，不再调用 `Graph.addEdge` 手动建图；
 3. 本期先解决 UTF-8 中文显示，中英文切换后续迭代；
 4. 画布先做静态布局，悬停高亮、点击反馈延后；
 5. 节点在图上最终展示为"编码 + 课程名"两行（当前数据文件仅含编码，课程名映射待数据补充）。
@@ -136,65 +136,71 @@
 
 ### 3.1 计算按钮点击后的完整流程
 
-```
-EDT(事件分发线程)                    后台线程(SwingWorker)
-      │
-      │ 点击"计算拓扑排序"（菜单或工具栏）
-      ▼
-MainController.compute()
-      │
-      ├─ inputPanel.getInputText()，为空白则警告并中止
-      │
-      ├─ DataParser.parse(text)                  （D 的正式解析器，静态方法）
-      │     └─ ParseResult{ edges, selfLoops, errors, duplicateCount }
-      │
-      ├─ !isSuccess() ? 组装"第x行：原因"消息 → ExceptionHandler 弹窗 → 中止
-      ├─ !hasData()    ? 警告"没有有效的关系数据" → 中止
-      │
-      ├─ new Graph()，遍历 getEdges() 与 getSelfLoops() 调 graph.addEdge(s,t)
-      ├─ graphPanel.setGraph(graph)              （先刷新画布结构）
-      │
-      ├─ CycleDetector.findCycle(graph)
-      │     ├─ 非空（自环 [X,X] / 2 环 [A,B,A] / 更长闭合路径）
-      │     │     ├─ graphPanel.setHighlightedCycle(cycle)（环边红色加粗）
-      │     │     ├─ resultPanel 清空
-      │     │     ├─ statusBar.updateStats(..., hasCycle=true, ...)
-      │     │     └─ 警告弹窗显示环路径，流程结束
-      │     └─ 空列表（无环）→ 进入枚举
-      │
-      ├─ setBusy(true)：禁用"计算"，启用"取消计算"
-      │
-      ├─ EnumerationWorker.execute() ──────────────▶ AllTopoSorts.enumerate(
-      │                                                   graph,
-      │                                                   maxResults = 10000,
-      │                                                   timeoutMillis = 30000,
-      │                                                   cancelled = () -> 取消标记 || isCancelled())
-      │   用户可随时点"取消计算"：cancelRequested = true，
-      │   枚举在下一个回溯检查点退出，保留已生成序列
-      │                                                     │
-      │ ◀──────────── done()：EnumerationResult ────────────┘
-      ├─ setBusy(false)
-      ├─ resultPanel.setResults(sequences)
-      ├─ graphPanel.setSelectedOrder(sequences.get(0))
-      ├─ statusBar.updateStats(节点, 边, false, 条数, 耗时ms)
-      └─ statusBar.setTip(按 StopReason 生成的中文提示)
+下图使用 Mermaid `sequenceDiagram` 绘制，GitHub / GitLab / Gitea 等仓库均原生渲染。EDT 与 SwingWorker 后台线程的协作、契约 §6 的 `ParseResult.getGraph()` 直接交付、以及 `getErrors/getWarnings` 的分流均可在图中定位：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant EDT as EDT(MainController)
+    participant DP as DataParser(D)
+    participant CD as CycleDetector(A)
+    participant GP as GraphPanel(C)
+    participant RP as ResultPanel(B)
+    participant SB as StatusBar(B)
+    participant BG as SwingWorker(后台)
+    participant ALG as AllTopoSorts(A)
+
+    U->>EDT: 点击"计算拓扑排序"
+    EDT->>EDT: getInputText()，空白则警告并中止
+    EDT->>DP: dataParser.parse(text)
+    DP-->>EDT: ParseResult(graph, errors, warnings)
+    EDT->>EDT: errors 非空? 格式化"第x行：原因"<br/>弹窗后中止
+    EDT->>EDT: warnings 非空? Info 弹窗提示<br/>不中止
+    EDT->>DP: parsed.getGraph()
+    DP-->>EDT: model.Graph
+    EDT->>EDT: vertexCount==0 and edgeCount==0?<br/>警告并中止
+    EDT->>GP: setGraph(graph)
+    EDT->>CD: findCycle(graph)
+    alt 含环（含自环 X,X / 互指 A,B,A）
+        CD-->>EDT: 闭合路径 cycle
+        EDT->>GP: setHighlightedCycle(cycle)
+        EDT->>RP: setResults([])
+        EDT->>SB: updateStats(节点, 边, hasCycle=true, 0, ms)
+        EDT->>U: 警告弹窗显示环路径
+    else 无环
+        CD-->>EDT: 空列表
+        EDT->>EDT: setBusy(true) 禁用计算/启用取消
+        EDT->>SB: setTip 计算中
+        EDT->>BG: execute(EnumerationWorker)
+        BG->>ALG: enumerate(graph, 10000, 30000, cancelled)
+        Note over BG,ALG: 用户可随时点"取消计算"<br/>cancelRequested=true，下个回溯检查点退出
+        ALG-->>BG: EnumerationResult
+        BG-->>EDT: done()
+        EDT->>EDT: setBusy(false)
+        EDT->>RP: setResults(sequences)
+        EDT->>GP: setSelectedOrder(sequences[0])
+        EDT->>SB: updateStats(节点, 边, false, 条数, ms)
+        EDT->>SB: setTip(按 StopReason 中文提示)
+    end
 ```
 
 ### 3.2 关键事件序列（文字版）
 
 1. 用户点击"计算拓扑排序"（菜单项或工具栏按钮触发同一入口）；
 2. MainController.compute() 取输入文本，空白（仅空白字符）直接警告并中止；
-3. 调用静态方法 `DataParser.parse(text)`，不再先做 InputValidator 预校验（原因见 7.3）；
-4. `ParseResult.isSuccess()` 为 false（errors 非空）时，把每条 ParseError 格式化为"第x行：原因"（lineNumber 为 0 的全局性错误只显示原因），弹窗最多展示 20 条，**中止流程**（V1.0 设计中的"有错仍继续解析"已废弃，避免脏数据建图）；
-5. `hasData()` 为 false（边与自环均为空，如全文只有注释）时警告并中止；
-6. 用边列表建图：先遍历 `getEdges()`，再遍历 `getSelfLoops()`，逐条 `graph.addEdge(source,target)`；解析器已对普通边去重，重复数可经 `getDuplicateCount()` 获取；
-7. `graphPanel.setGraph(graph)` 先把图交给画布布局；
-8. `CycleDetector.findCycle(graph)` 返回闭合路径列表；空列表表示无环；自环返回 `[X,X]`，两节点互指返回 `[A,B,A]`；
-9. 有环：画布 `setHighlightedCycle` 标红、结果列表清空、状态栏按含环更新，弹窗显示环路径后结束；
-10. 无环：setBusy 切换按钮状态，启动内部类 EnumerationWorker（继承 SwingWorker）；
-11. 后台执行 `AllTopoSorts.enumerate(graph, 10000, 30000, 取消谓词)`，结果上限 10000 条、超时 30 秒；
-12. done() 回到 EDT：填充 ResultPanel、画布高亮首条序列、状态栏更新统计；
-13. 状态栏提示按 StopReason 区分：COMPLETED"枚举完成，共 N 条"、LIMIT_REACHED"达到结果上限"、TIMEOUT"超时停止"、CANCELLED"已取消，已显示部分序列"。
+3. 调用契约 §6 规定的实例方法 `dataParser.parse(text)`（B 持有 `new DataParser()` 实例），返回顶层 `io.ParseResult`；
+4. `parsed.getErrors()` 非空时，把每条 `ParseIssue` 格式化为"第x行：原因"（`getLineNo()==0` 的全局性错误只显示原因），最多展示 20 条后**中止流程**；
+5. `parsed.getWarnings()` 非空时（如重复关系），按相同格式 Info 弹窗提示（最多 10 条），**不中止**；
+6. **直接取图**：`Graph graph = parsed.getGraph();` ——B 不再调 `Graph.addEdge`，建图职责完全由 D 在解析器内部完成（契约 §6 + 图设计 §一）；
+7. 若 `graph.getVertexCount()==0 && graph.getEdgeCount()==0`，按契约 §6 "整份输入没有有效节点和关系" 由输入层提示，警告并中止；
+8. `graphPanel.setGraph(graph)` 先把图交给画布布局；
+9. `CycleDetector.findCycle(graph)` 返回闭合路径列表；空列表表示无环；自环返回 `[X,X]`，两节点互指返回 `[A,B,A]`；
+10. 有环：画布 `setHighlightedCycle` 标红、结果列表清空、状态栏按含环更新，弹窗显示环路径后结束；
+11. 无环：setBusy 切换按钮状态，启动内部类 EnumerationWorker（继承 SwingWorker）；
+12. 后台执行 `AllTopoSorts.enumerate(graph, 10000, 30000, 取消谓词)`，结果上限 10000 条、超时 30 秒；
+13. done() 回到 EDT：填充 ResultPanel、画布高亮首条序列、状态栏更新统计；
+14. 状态栏提示按 StopReason 区分：COMPLETED"枚举完成，共 N 条"、LIMIT_REACHED"达到结果上限"、TIMEOUT"超时停止"、CANCELLED"已取消，已显示部分序列"。
 
 ### 3.3 用户选中序列时的事件流
 
@@ -344,10 +350,9 @@ public static void handle(Component parent, Throwable t);
 
 | 调用方 | 被调方 | 方法 | 返回 | 何时调用 |
 |---|---|---|---|---|
-| MainController / InputPanel | io.DataParser | static parse(String) | ParseResult | 计算前解析、文本→表格同步 |
-| MainController | ParseResult | isSuccess() / hasData() / getEdges() / getSelfLoops() / getErrors() | boolean / List<Edge> / List<ParseError> | 校验与建图 |
-| MainController | model.Graph | addEdge(String,String) | boolean | 边列表逐条建图（含自环） |
-| MainController | algorithm.CycleDetector | static findCycle(Graph) | List<String>（空=无环，闭合=有环） | 建图后判环 |
+| MainController / InputPanel | io.DataParser | parse(String)（实例方法） | io.ParseResult | 计算前解析、文本→表格同步 |
+| MainController | io.ParseResult | getGraph() / getErrors() / getWarnings() | model.Graph / List<ParseIssue> / List<ParseIssue> | 校验与取图 |
+| MainController | algorithm.CycleDetector | static findCycle(Graph) | List<String>（空=无环，闭合=有环） | 取图后判环 |
 | EnumerationWorker | algorithm.AllTopoSorts | static enumerate(Graph,int,long,BooleanSupplier) | EnumerationResult | 无环时后台枚举 |
 | MainController | EnumerationResult | getSequences() / getGeneratedCount() / isComplete() / getStopReason() | — | 回填 UI 与提示 |
 | MainController / InputPanel | io.FileManager | readFile / saveFile / exportTxt / exportCsv（均 static，File 参数，抛 IOException） | — | 文件读写与结果导出 |
@@ -356,45 +361,36 @@ public static void handle(Component parent, Throwable t);
 
 补充类型：
 
-- `DataParser.Edge`：getSource()、getTarget()、isSelfLoop()；getEdges() 返回已去重、不含自环的边，自环在 getSelfLoops() 中；
-- `DataParser.ParseError`：getLineNumber()（0 表示全局性错误，如"没有有效数据行"）、getMessage()；
+- `io.ParseResult`：`Graph getGraph()`、`List<ParseIssue> getErrors()`、`List<ParseIssue> getWarnings()`（另有 `hasErrors/hasWarnings/getErrorCount/getWarningCount` 便捷方法）；契约 §6 规定的顶层类型，B 不访问解析器内部的边/自环列表；
+- `io.ParseIssue`：`int getLineNo()`（1 起行号；0 表示整份输入级别的全局问题）、`String getReason()`、`String getContent()`（出错行原文）；
 - `algorithm.TopoResult`：getOrder()、hasCycle()；`StopReason`：COMPLETED / LIMIT_REACHED / CANCELLED / TIMEOUT / CYCLE；
 - 空图枚举按契约返回 `[[]]`（生成数 1、完整），含环图返回 CYCLE、序列为空。
 
 ### 5.2 Graph 公开能力（A 图设计，算法/视图层只允许使用这些方法）
 
-`boolean addVertex(String)`、`boolean addEdge(String,String)`、`boolean removeEdge(String,String)`、`List<String> getVertexNames()`、`List<String> getSuccessors(String)`、`int getInDegree(String)`、`int getOutDegree(String)`、`int getVertexCount()`、`int getEdgeCount()`。Graph 不暴露 Vertex/Edge 内部结构，也不维护可供外部遍历的独立 Edge 列表；视图层通过 getVertexNames + getSuccessors 派生全部边。
+`boolean addVertex(String)`、`boolean addEdge(String,String)`、`boolean removeEdge(String,String)`、`List<String> getVertexNames()`、`List<String> getSuccessors(String)`、`int getInDegree(String)`、`int getOutDegree(String)`、`int getVertexCount()`、`int getEdgeCount()`。Graph 不暴露 Vertex/Edge 内部结构，也不维护可供外部遍历的独立 Edge 列表；视图层通过 getVertexNames + getSuccessors 派生全部边（含自环——自环在 `getSuccessors(X)` 中表现为 `X` 自身）。
 
 ### 5.3 数据流图
 
-```
-[文本区 <a,b> 输入 / data 目录数据文件]
-                 │ String
-                 ▼
-          io.DataParser.parse（D 的标准解析器）
-                 │ ParseResult
-                 ▼
-   errors 非空？──是──▶ 中文错误弹窗（带行号），中止
-   edges+selfLoops 为空？──是──▶ 警告，中止
-                 │ 否
-                 ▼
-        new Graph() + addEdge 逐条建图
-                 │ Graph
-                 ▼
-       CycleDetector.findCycle
-                 │
-      ┌──────────┴───────────┐
-      ▼ 非空                  ▼ 空
- 环路径红色高亮+警告      EnumerationWorker（后台线程）
-                          AllTopoSorts.enumerate
-                          （上限 10000 / 超时 30s / 可取消）
-                                │ EnumerationResult
-                                ▼
-        ResultPanel.setResults + GraphPanel 首条序列高亮
-        StatusBar.updateStats + 按 StopReason 提示
-                                │
-                                ▼
-                  可导出 PNG / TXT / CSV
+下图使用 Mermaid `flowchart` 绘制，可在 GitHub / GitLab / Gitea 直接渲染。整份输入文本经 D 的 DataParser 解析为 ParseResult，B 直接取其 `getGraph()` 交付 Graph，不再手动建图：
+
+```mermaid
+flowchart TD
+    A["文本区 &lt;a,b&gt; 输入 / data 目录数据文件"]
+    A -->|String| B["io.DataParser.parse<br/>D 的标准解析器（实例方法）"]
+    B -->|io.ParseResult| C{"getErrors()<br/>非空？"}
+    C -->|是| D["中文错误弹窗（带行号）<br/>中止流程"]
+    C -->|否| E{"getWarnings()<br/>非空？"}
+    E -->|是| F["Info 弹窗提示<br/>不中止"]
+    E -->|否| G
+    F --> G{"graph.vertexCount==0<br/>and edgeCount==0？"}
+    G -->|是| H["警告：没有有效数据<br/>中止流程"]
+    G -->|否| I["parsed.getGraph()<br/>B 不调 Graph.addEdge"]
+    I -->|model.Graph| J["CycleDetector.findCycle"]
+    J -->|含环（含自环 / 互指 / 长环）| K["环路径红色高亮 + 警告弹窗<br/>resultPanel 清空 / 状态栏含环"]
+    J -->|空列表（无环）| L["EnumerationWorker（后台线程）<br/>AllTopoSorts.enumerate<br/>上限 10000 / 超时 30s / 可取消"]
+    L -->|io.EnumerationResult| M["ResultPanel.setResults + GraphPanel 首条序列高亮<br/>StatusBar.updateStats + 按 StopReason 提示"]
+    M --> N["可导出 PNG / TXT / CSV"]
 ```
 
 ---
@@ -406,10 +402,11 @@ public static void handle(Component parent, Throwable t);
 | 场景 | 判定位置 | 处理方式与用户反馈 |
 |---|---|---|
 | 输入为空白 | compute() 开头 | 警告"请输入关系数据后再计算"，中止 |
-| 语法/格式错误（如缺少尖括号、括号不匹配） | ParseResult.getErrors() | 错误弹窗，逐行"第 x 行：原因"，最多 20 条，中止建图 |
-| 只有注释/空行，无有效边 | ParseResult.hasData()=false | 警告"没有有效的关系数据"，中止 |
-| 重复边 | 解析器自动去重 | 不报错；重复计数保留在 getDuplicateCount() |
-| 自环 `<x,x>` | 进入 getSelfLoops()，照常建图 | findCycle 返回 [x,x]，画布标红 + 环警告 |
+| 语法/格式错误（如缺少尖括号、括号不匹配） | ParseResult.getErrors() | 错误弹窗，逐行"第 x 行：原因"，最多 20 条，中止流程 |
+| 可继续处理的提示（如重复关系） | ParseResult.getWarnings() | Info 弹窗提示，不中止；最终结果以 Graph 实际数据为准 |
+| 只有注释/空行，无有效边 | graph.getVertexCount()==0 && getEdgeCount()==0 | 警告"没有有效的关系数据"，中止 |
+| 重复边 | 解析器内部去重 | 不报错；以 `parsed.getWarnings()` 形式提示，不影响 Graph |
+| 自环 `<x,x>` | 由 D 在 Graph 中保留为真实有向边 | findCycle 返回 [x,x]，画布标红 + 环警告 |
 | 两节点互指/更长环 | findCycle | 闭合路径标红，结果列表清空，状态栏"含环" |
 | 枚举达到上限 / 超时 / 被取消 | StopReason | 展示已生成序列，状态栏分别提示上限/超时/已取消 |
 | 载入、保存 IO 失败 | InputPanel 内 try-catch | JOptionPane 错误弹窗（含异常消息） |
@@ -421,10 +418,12 @@ public static void handle(Component parent, Throwable t);
 解析错误在 MainController 中统一格式化后交给 ExceptionHandler：
 
 ```
-第3行：无法识别的数据格式
-第7行：括号不匹配
-（lineNumber == 0 时省略"第x行："前缀，直接显示全局原因）
+第3行：格式错误：应为 <a,b>
+第7行：顶点名不能为空
+（getLineNo() == 0 时省略"第x行："前缀，直接显示全局原因）
 ```
+
+警告（`getWarnings()`，如重复关系）以 Info 弹窗同格式展示，不中止流程。
 
 ---
 
@@ -434,29 +433,33 @@ public static void handle(Component parent, Throwable t);
 
 | 任务 | 状态 | 验证 |
 |---|---|---|
-| T-B1 MainFrame | 完成 | 全量 `-encoding UTF-8` 编译通过；GUI 启动截图，菜单/工具栏/分割布局正常 |
-| T-B2 InputPanel | 完成 | 默认中文提示正常显示；载入/保存/双向同步/增删行可用；解析器接入 |
-| T-B3 ResultPanel | 完成 | 每页 20 条分页、单击高亮回调、双击复制均已验证 |
-| T-B4 MainController | 完成 | 示例数据计算得 `MA 140 -> MA 141 -> CS 150`；后台枚举与取消按钮互斥启用 |
-| T-B5 StatusBar + ExceptionHandler | 完成 | 含环红色/无环绿色；错误弹窗带行号 |
-| T-B6/T-B7 文档 | 完成 | 需求分析报告、本报告随代码同步更新至 V1.1 |
-| T-B8 UIStyle | 完成 | 全局样式统一；修复中文方块问题（Consolas → Font.MONOSPACED） |
+| T-B1 MainFrame | 完成（V1.0 起） | 全量 `-encoding UTF-8` 编译通过；GUI 启动截图，菜单/工具栏/分割布局正常 |
+| T-B2 InputPanel | 完成（V1.2 调整） | 默认中文提示正常显示；载入/保存/双向同步/增删行可用；`syncTextToTable` 改为基于 `parsed.getGraph()` + `getVertexNames` + `getSuccessors` 派生表格行 |
+| T-B3 ResultPanel | 完成（V1.0 起） | 每页 20 条分页、单击高亮回调、双击复制均已验证 |
+| T-B4 MainController | 完成（V1.2 调整） | `compute()` 直接取 `parsed.getGraph()`，不再手动建图；`getErrors()` 中止流程、`getWarnings()` 仅提示；后台枚举与取消按钮互斥启用 |
+| T-B5 StatusBar + ExceptionHandler | 完成（V1.0 起） | 含环红色/无环绿色；错误弹窗带行号；V1.2 增加对 warning 流的 Info 弹窗 |
+| T-B6/T-B7 文档 | 完成（V1.2） | 需求分析报告、本报告随代码同步更新至 V1.2 |
+| T-B8 UIStyle | 完成（V1.1 起） | 全局样式统一；修复中文方块问题（Consolas → Font.MONOSPACED），V1.2 保持未回退 |
 
-流水线验证（dev-b）：data/figure1.txt（15 节点/16 边）、data/curriculum.txt（43 节点/85 边）解析建图成功，Kahn 序列长度等于节点数，枚举达上限正确停止；互指环返回 `a -> b -> a`、自环返回 `x -> x`、纯注释输入与非法行被正确拒绝。
+流水线验证（dev-b，V1.2）：全量 `javac -encoding UTF-8` 编译零错误；23 项命令行链路冒烟全部通过——data/figure1.txt（15 节点/16 边，节点名含内部空格）解析后节点数/边数精确、Kahn 序列覆盖全部节点；重复边产生 warning 且不计入度数；自环返回 `[X,X]`；非法行返回带行号 error；全角 `＜＞，` 兼容；仅注释输入返回空 Graph 且无 error；小图全枚举恰得 2 条 COMPLETED 序列；孤立节点保留并进入每条序列；含环图枚举入口以 CYCLE 拒绝。
+
+> 解析层现状：io 包当前为 A 在 HEAD 中提供的 T-D1 契约桩（`DataParser.parse` 实例方法 + 顶层 `ParseResult` / `ParseIssue`），B 已完整对接。D 交付正式解析器时只要保持契约 §6 签名（`getGraph/getErrors/getWarnings` 与 `ParseIssue.getLineNo/getReason/getContent`）即可无缝替换，B 侧无需改动。
 
 ### 7.2 中文显示问题的排查结论
 
 - 源码为 UTF-8 无 BOM，编译带 `-encoding UTF-8`，class 文件中字符串经 Unicode 转义探针核对完全正确（早期 javap 看到的乱码只是 PowerShell 控制台 GBK 代码页的显示问题）；
 - 真正的显示故障是字体：文本区使用的物理字体 Consolas 不含中文字形，JTextArea/JList 中中文被画成方块（JLabel 使用微软雅黑因此正常）；
-- 修复：UIStyle.FONT_MONO 改为逻辑字体 `new Font(Font.MONOSPACED, Font.PLAIN, 13)`，ASCII 仍等宽，中文自动回退，GUI 截图确认正常。
+- 修复：UIStyle.FONT_MONO 改为逻辑字体 `new Font(Font.MONOSPACED, Font.PLAIN, 13)`，ASCII 仍等宽，中文自动回退，GUI 截图确认正常；
+- V1.2 复核：UIStyle.FONT_MONO 保持 `Font.MONOSPACED` 未回退；中文字符在文本区、表格、结果列表、画布均正常渲染。
 
 ### 7.3 已知差异与遗留项
 
-1. **InputValidator 规则不一致**：D 的 `InputValidator.validate` 正则不允许节点名含内部空格，会把契约与解析器都接受的 `MA 140` 判为非法。因此计算流程以 DataParser 为唯一权威，未接入预校验；需例会上请 D 统一校验规则后再决定是否启用；
-2. **A 新版契约未合入 main**：当前算法层按冻结契约 V1.0 编译运行；A 适配边列表的新契约合入后，预计只需调整 MainController 的建图适配段；
-3. **画布为占位实现**：当前环形静态布局由 B 维护，分层布局、缩放拖拽、悬停高亮、点击反馈按会议决议等待 C 迭代；GraphPanel 的三个 set/export 方法签名已按对接需要固定；
-4. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
-5. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。
+1. **解析器为 A 契约桩，D 正式版待交付**：当前 `io.DataParser` / `io.ParseResult` / `io.ParseIssue` 采用 A 在 HEAD 中提供的 T-D1 桩实现（已满足契约 §6 并通过 23 项链路冒烟）；D 的正式实现需保持相同公开签名，B 侧不需改动；
+2. **画布为占位实现**：当前环形静态布局由 B 维护，分层布局、缩放拖拽、悬停高亮、点击反馈按会议决议等待 C 迭代；GraphPanel 的三个 set/export 方法签名已按对接需要固定；
+3. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
+4. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。
+
+> V1.1 遗留的"InputValidator 规则不一致"与"A 新版契约未合入 main"两项在 V1.2 中已通过 B 侧直接对接契约 V1.0 关闭：B 不依赖 `InputValidator`，也不再调用 `Graph.addEdge` 建图。
 
 ---
 
@@ -471,8 +474,9 @@ e:\tp
 │   ├── algorithm\                A：TopologicalSolver / TopoResult
 │   │                             │   AllTopoSorts / EnumerationResult / StopReason
 │   │                             └── CycleDetector
-│   ├── io\                       D：DataParser / FileManager（直接复用正式实现）
-│   ├── util\                     D：InputValidator；B：UIStyle / ExceptionHandler
+│   ├── io\                       DataParser / ParseResult / ParseIssue（A 的 T-D1 契约桩，D 正式版待替换）
+│   │                             │   FileManager（D 实现，B 直接复用）
+│   ├── util\                     D：InputValidator（B 计算流程不依赖，见 §7.3）；B：UIStyle / ExceptionHandler
 │   ├── ui\                       B：MainFrame(T-B1) / InputPanel(T-B2)
 │   │                             │   ResultPanel(T-B3) / MainController(T-B4)
 │   │                             └── StatusBar(T-B5)

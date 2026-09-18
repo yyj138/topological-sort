@@ -15,7 +15,7 @@
 
 | 项 | 选择 |
 |----|------|
-| 语言 | Java 8+（当前开发环境 JDK 21） |
+| 语言 | Java（目标 JDK 21，团队统一版本） |
 | GUI | Swing（JDK 自带，零外部依赖） |
 | 构建 | javac / IDE 直接编译 |
 | 数据 | 文本文件（.txt），统一 `<a,b>` 格式 |
@@ -30,12 +30,12 @@
 ## 目录结构
 
 ```
-topo-sort-app/
+tp/                            # 仓库根（E:\tp，唯一工程根，无嵌套工程目录）
 ├── README.md                  # 本文件
 ├── .gitignore
 ├── docs/                      # 接口契约.md（V1.0 已冻结）、代码规范.md、设计/图数据结构设计.md
 ├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
-├── src/
+├── src/                       # 全部源码唯一根（编译输出 src/out，已被 .gitignore 忽略）
 │   ├── model/                 # Vertex / Edge / Graph
 │   ├── algorithm/             # Kahn / 枚举 / 环检测
 │   ├── io/                    # DataParser / FileManager（组员 D 正式实现）
@@ -72,7 +72,7 @@ topo-sort-app/
 ## 开工准备
 
 ```
-# 1. 检查环境（JDK 8+、Git）
+# 1. 检查环境（JDK 21、Git）
 java -version
 git --version
 
@@ -82,7 +82,7 @@ git config --global user.email "你的邮箱"
 
 # 3. 克隆并切到自己的分支（A/C/D/E 对应 dev-a/dev-c/dev-d/dev-e）
 git clone <仓库地址>
-cd topo-sort-app
+cd tp
 git checkout -b dev-b origin/dev-b
 
 # 4. 验证

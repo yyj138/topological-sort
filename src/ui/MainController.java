@@ -6,6 +6,8 @@ import algorithm.EnumerationResult;
 import algorithm.StopReason;
 import io.DataParser;
 import io.FileManager;
+import io.ParseIssue;
+import io.ParseResult;
 import model.Graph;
 import util.ExceptionHandler;
 
@@ -16,8 +18,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-// 主控制器（T-B4/T-B7）：连接菜单/工具栏事件与解析、建图、计算、导出流程
-// 解析复用 D 的 DataParser；全拓扑枚举在 SwingWorker 后台执行，可随时取消
+// 主控制器（T-B4/T-B7）：连接菜单/工具栏事件与解析、取图、计算、导出流程
+// 解析复用 D 的 DataParser（契约 §6：parse 返回 ParseResult，B 直接取 getGraph()）
+// 全拓扑枚举在 SwingWorker 后台执行，可随时取消
 public class MainController {
 
     // 枚举上限与超时：防止超大图长时间阻塞
@@ -25,6 +28,8 @@ public class MainController {
     private static final long TIMEOUT_MILLIS = 30_000L;
 
     private final MainFrame frame;
+    // 契约 §6：DataParser 为实例方法，B 持有解析器实例
+    private final DataParser dataParser = new DataParser();
 
     private Graph currentGraph;
     private volatile boolean cancelRequested;
@@ -77,7 +82,9 @@ public class MainController {
                 seq -> frame.getGraphPanel().setSelectedOrder(seq));
     }
 
-    // 核心流程：解析 -> 校验 -> 建图 -> 判环 -> Kahn + 后台枚举
+    // 核心流程：解析 -> 校验 -> 取图 -> 判环 -> 后台枚举
+    // 契约 §6：D 的 DataParser.parse 返回 ParseResult，通过 getGraph() 直接交付 model.Graph
+    // B 不再手动建图；问题类型为 io.ParseIssue
     private void compute() {
         String text = frame.getInputPanel().getInputText();
         if (text == null || text.trim().isEmpty()) {
@@ -87,34 +94,50 @@ public class MainController {
 
         long start = System.currentTimeMillis();
 
-        // D 的 DataParser 是唯一解析入口（9.17 会议决议）
-        DataParser.ParseResult parsed = DataParser.parse(text);
+        // D 的 DataParser 是唯一解析入口（契约 §6 + 9.17 会议决议）
+        ParseResult parsed = dataParser.parse(text);
 
-        if (!parsed.isSuccess()) {
+        // 解析错误：直接中止，不进入取图与计算
+        List<ParseIssue> errors = parsed.getErrors();
+        if (!errors.isEmpty()) {
             List<String> msgs = new ArrayList<>();
-            for (DataParser.ParseError err : parsed.getErrors()) {
-                if (err.getLineNumber() > 0) {
-                    msgs.add("第" + err.getLineNumber() + "行：" + err.getMessage());
+            for (ParseIssue err : errors) {
+                int line = err.getLineNo();
+                if (line > 0) {
+                    msgs.add("第" + line + "行：" + err.getReason());
                 } else {
-                    msgs.add(err.getMessage());
+                    msgs.add(err.getReason());
                 }
             }
             ExceptionHandler.showParseErrors(frame, msgs);
             return;
         }
-        if (!parsed.hasData()) {
+
+        // 警告（如重复关系）：不中止，提示用户
+        List<ParseIssue> warnings = parsed.getWarnings();
+        if (!warnings.isEmpty()) {
+            StringBuilder sb = new StringBuilder("解析提示：\n");
+            int show = Math.min(warnings.size(), 10);
+            for (int i = 0; i < show; i++) {
+                ParseIssue w = warnings.get(i);
+                int line = w.getLineNo();
+                String reason = w.getReason();
+                sb.append(line > 0 ? "第" + line + "行：" + reason : reason);
+                sb.append("\n");
+            }
+            if (warnings.size() > show) {
+                sb.append("... 共 ").append(warnings.size()).append(" 条提示");
+            }
+            ExceptionHandler.showInfo(frame, sb.toString());
+        }
+
+        // 契约 §6：Graph 直接来自 ParseResult.getGraph()，B 不再手动建图
+        Graph graph = parsed.getGraph();
+        if (graph.getVertexCount() == 0 && graph.getEdgeCount() == 0) {
             ExceptionHandler.showWarning(frame, "没有有效的关系数据，请检查输入");
             return;
         }
 
-        // 边列表建图：普通边 + 自环（自环必然成环，交判环处理）
-        Graph graph = new Graph();
-        for (DataParser.Edge edge : parsed.getEdges()) {
-            graph.addEdge(edge.getSource(), edge.getTarget());
-        }
-        for (DataParser.Edge selfLoop : parsed.getSelfLoops()) {
-            graph.addEdge(selfLoop.getSource(), selfLoop.getTarget());
-        }
         this.currentGraph = graph;
         this.costMillis = System.currentTimeMillis() - start;
 

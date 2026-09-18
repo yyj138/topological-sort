@@ -2,6 +2,8 @@ package ui;
 
 import io.DataParser;
 import io.FileManager;
+import io.ParseResult;
+import model.Graph;
 import util.UIStyle;
 
 import javax.swing.AbstractAction;
@@ -37,6 +39,8 @@ public class InputPanel extends JPanel {
         public boolean isCellEditable(int row, int col) { return true; }
     };
     private final JTable table = new JTable(tableModel);
+    // 契约 §6：DataParser 为实例方法，输入面板持有自己的解析器实例
+    private final DataParser dataParser = new DataParser();
 
     private final JButton btnLoadFile = new JButton("载入文件");
     private final JButton btnSaveData = new JButton("保存数据");
@@ -230,15 +234,22 @@ public class InputPanel extends JPanel {
         }
     }
 
-    // 用 D 解析器把文本解析为边（含自环），填入表格
+    // 契约 §6：解析后直接取 Graph，按 getVertexNames + getSuccessors 派生边
+    // Graph 不维护独立 Edge 列表（图设计 §二），视图层据此派生全部边，含自环
     public void syncTextToTable() {
-        DataParser.ParseResult result = DataParser.parse(textArea.getText());
+        ParseResult result = dataParser.parse(textArea.getText());
         tableModel.setRowCount(0);
-        for (DataParser.Edge edge : result.getEdges()) {
-            tableModel.addRow(new Object[]{edge.getSource(), edge.getTarget()});
+
+        // 解析错误：表格留空，由 MainController.compute 统一弹窗；此处仅返回
+        if (!result.getErrors().isEmpty()) {
+            return;
         }
-        for (DataParser.Edge selfLoop : result.getSelfLoops()) {
-            tableModel.addRow(new Object[]{selfLoop.getSource(), selfLoop.getTarget()});
+
+        Graph graph = result.getGraph();
+        for (String from : graph.getVertexNames()) {
+            for (String to : graph.getSuccessors(from)) {
+                tableModel.addRow(new Object[]{from, to});
+            }
         }
     }
 
