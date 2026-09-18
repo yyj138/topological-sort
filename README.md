@@ -38,11 +38,10 @@ topo-sort-app/
 ├── src/
 │   ├── model/                 # Vertex / Edge / Graph
 │   ├── algorithm/             # Kahn / 枚举 / 环检测
-│   ├── io/                    # DataParser / FileManager / ImageExporter
-│   ├── view/                  # GraphPanel / LayoutManager
-│   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController
-│   ├── util/                  # Constants / InputValidator
-│   └── AlgorithmRunner.java   # 命令行测试入口
+│   ├── io/                    # DataParser / FileManager（组员 D 正式实现）
+│   ├── view/                  # GraphPanel（静态环形画布，C 后续演进分层布局）
+│   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
+│   └── util/                  # UIStyle / ExceptionHandler / InputValidator
 ├── test/                      # 算法 / 解析测试（根目录，T-E1/E2）
 └── screenshots/               # 运行截图
 ```
@@ -125,12 +124,56 @@ git branch          # 应显示 * dev-b
 <CS200,CS225>
 ```
 
+## 关系图预览
+
+`data/figure1.txt`（任务书图 1：15 门课程、16 条先修关系）。下图为 Mermaid 有向图，在 GitHub 上直接渲染，节点是课程、箭头方向为先修 → 后修；由数据文件逐条生成：
+
+```mermaid
+flowchart LR
+    v01["MA 140"]
+    v02["MA 141"]
+    v03["CS 150"]
+    v04["CS 225"]
+    v05["CS 155"]
+    v06["CS 200"]
+    v07["CS 230"]
+    v08["CS 300"]
+    v09["CS 250"]
+    v10["CS 301"]
+    v11["CS 340"]
+    v12["CS 345"]
+    v13["CS 360"]
+    v14["CS 350"]
+    v15["CS 390"]
+    v01 --> v02
+    v02 --> v03
+    v02 --> v04
+    v03 --> v05
+    v05 --> v06
+    v05 --> v04
+    v04 --> v07
+    v04 --> v08
+    v04 --> v09
+    v08 --> v10
+    v08 --> v11
+    v11 --> v12
+    v11 --> v13
+    v09 --> v14
+    v09 --> v13
+    v13 --> v15
+```
+
+完整的 43 节点 / 85 边培养方案关系图见 [需求分析报告](docs/需求分析报告.md#53-数据文件示例) 5.3 节。
+
 ## 编译与运行
 
-```
-cd src
-javac -encoding UTF-8 model/*.java algorithm/*.java io/*.java util/*.java view/*.java ui/*.java AlgorithmRunner.java
+```powershell
+# Windows PowerShell：递归编译，必须显式指定 UTF-8
+Set-Location src
+$files = (Get-ChildItem -Recurse -Filter "*.java" |
+          Where-Object { $_.Name -ne "package-info.java" }).FullName
+& javac @('-encoding','UTF-8','-d','out') @files
 
-java AlgorithmRunner ../data/figure1.txt   # 命令行入口
-java MainFrame                            # GUI 入口（完成后）
+Set-Location out
+java ui.MainFrame
 ```
