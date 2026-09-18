@@ -1,162 +1,327 @@
+package test;
+
 import io.DataParser;
-import io.DataParser.ParseResult;
-import io.DataParser.Edge;
+import io.ParseIssue;
+import io.ParseResult;
+import model.Graph;
 
+/**
+ * DataParser 容错测试，覆盖合法、非法、混合三类输入场景。
+ * 对应 T-D1 交付物"容错用例运行结果"，同时供 T-E2 参考。
+ */
 public class TestDataParser {
+
+    private static int passed = 0;
+    private static int failed = 0;
+
     public static void main(String[] args) {
-        int pass = 0;
-        int fail = 0;
+        System.out.println("========================================");
+        System.out.println("  DataParser 容错测试");
+        System.out.println("========================================\n");
 
-        // 测试1：正常输入
-        System.out.println("=== 测试1：正常输入 ===");
-        ParseResult r1 = DataParser.parse("<a,b>\n<b,c>\n<c,d>");
-        if (r1.isSuccess() && r1.getEdges().size() == 3) {
-            System.out.println("通过！边数: " + r1.getEdges().size());
-            pass++;
+        // ========== 一、合法输入 ==========
+        System.out.println("【一、合法输入】");
+
+        test("合法基本关系",
+                "<A,B>\n<C,D>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("带注释行",
+                "# 这是注释\n<A,B>\n# 另一行注释\n<C,D>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("带空行",
+                "\n<A,B>\n\n<C,D>\n",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("行首尾有多余空格",
+                "  <A,B>  \n   <C,D>   ",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("全角尖括号和逗号",
+                "＜A，B＞\n＜C，D＞",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("名称含内部空格",
+                "<MA 141,CS 225>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 2);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 1);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("自环保留为正常边",
+                "<A,A>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 1);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 1);
+                    assertEqual("A入度", result.getGraph().getInDegree("A"), 1);
+                    assertEqual("A出度", result.getGraph().getOutDegree("A"), 1);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("区分大小写",
+                "<a,B>\n<A,b>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        // ========== 二、非法输入 ==========
+        System.out.println("\n【二、非法输入】");
+
+        test("缺少尖括号",
+                "A,B",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                });
+
+        test("缺少逗号",
+                "<AB>",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                });
+
+        test("起点为空",
+                "<,B>",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                });
+
+        test("终点为空",
+                "<A,>",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                });
+
+        test("完全乱码行",
+                "qwertyuiop",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                });
+
+        test("名称含非法字符（尖括号）",
+                "<A<,B>",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                });
+
+        test("名称含非法字符（逗号）",
+                "<A,,B>",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                });
+
+        test("null 输入不崩溃",
+                null,
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 0);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 0);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("空字符串输入不崩溃",
+                "",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 0);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 0);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("只有空格输入不崩溃",
+                "   ",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 0);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 0);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        // ========== 三、混合输入 ==========
+        System.out.println("\n【三、混合输入】");
+
+        test("重复边自动去重并产生警告",
+                "<A,B>\n<A,B>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 2);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 1);
+                    assertEqual("警告数", result.getWarnings().size(), 1);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("合法+非法混合，错误行不影响合法行",
+                "<A,B>\n乱码行\n<C,D>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 2);
+                });
+
+        test("注释+空格+合法+重复+非法混合",
+                "# 注释\n  <A,B>  \n\n＜C，D＞\n<A,B>\n乱码",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                    assertEqual("警告数", result.getWarnings().size(), 1);
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 6);
+                });
+
+        test("多条错误各有正确行号",
+                "<A,B>\n乱码1\n<C,D>\n乱码2\n<E,F>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 6);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 3);
+                    assertEqual("错误数", result.getErrors().size(), 2);
+                    assertEqual("第1个错误行号", result.getErrors().get(0).getLineNumber(), 2);
+                    assertEqual("第2个错误行号", result.getErrors().get(1).getLineNumber(), 4);
+                });
+
+        test("空文件（只有注释和空行）",
+                "# 只有注释\n\n# 再一行",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 0);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 0);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        test("自环+重复自环",
+                "<A,A>\n<A,A>",
+                result -> {
+                    assertEqual("节点数", result.getGraph().getVertexCount(), 1);
+                    assertEqual("边数", result.getGraph().getEdgeCount(), 1);
+                    assertEqual("警告数", result.getWarnings().size(), 1);
+                });
+
+        test("图1数据模拟（15门课程核心关系）",
+                "# 任务书图1：学生选课先修后修关系图\n" +
+                        "# 共15门课程，16条先修关系\n" +
+                        "<MA 140,MA 141>\n" +
+                        "<MA 141,CS 150>\n" +
+                        "<MA 141,CS 225>\n" +
+                        "<CS 150,CS 155>\n" +
+                        "<CS 155,CS 200>\n" +
+                        "<CS 155,CS 225>\n" +
+                        "<CS 225,CS 230>\n" +
+                        "<CS 225,CS 300>\n" +
+                        "<CS 225,CS 250>\n" +
+                        "<CS 300,CS 301>\n" +
+                        "<CS 300,CS 340>\n" +
+                        "<CS 340,CS 345>\n" +
+                        "<CS 340,CS 360>\n" +
+                        "<CS 250,CS 350>\n" +
+                        "<CS 250,CS 360>\n" +
+                        "<CS 360,CS 390>",
+                result -> {
+                    Graph g = result.getGraph();
+                    assertEqual("节点数", g.getVertexCount(), 15);
+                    assertEqual("边数", g.getEdgeCount(), 16);
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                });
+
+        // ========== 结果汇总 ==========
+        System.out.println("\n========================================");
+        System.out.println("  测试结果汇总：通过 " + passed + "，失败 " + failed);
+        System.out.println("========================================");
+
+        if (failed > 0) {
+            System.out.println("存在失败用例，请检查！");
         } else {
-            System.out.println("失败！");
-            fail++;
+            System.out.println("全部通过！");
         }
+    }
 
-        // 测试2：重复边自动去重
-        System.out.println("\n=== 测试2：重复边去重 ===");
-        ParseResult r2 = DataParser.parse("<a,b>\n<a,b>\n<b,c>\n<b,c>");
-        if (r2.isSuccess() && r2.getEdges().size() == 2 && r2.getDuplicateCount() == 2) {
-            System.out.println("通过！有效边: " + r2.getEdges().size()
-                    + "，去重数: " + r2.getDuplicateCount());
-            pass++;
-        } else {
-            System.out.println("失败！边数: " + r2.getEdges().size()
-                    + "，去重数: " + r2.getDuplicateCount());
-            fail++;
-        }
+    // ========== 测试工具方法 ==========
 
-        // 测试3：自环识别
-        System.out.println("\n=== 测试3：自环识别 ===");
-        ParseResult r3 = DataParser.parse("<a,b>\n<a,a>\n<b,c>");
-        if (r3.getSelfLoops().size() == 1 && r3.getSelfLoops().get(0).getSource().equals("a")) {
-            System.out.println("通过！自环: " + r3.getSelfLoops().get(0));
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
+    /**
+     * 测试用例函数接口。
+     */
+    @FunctionalInterface
+    interface TestCase {
+        void check(ParseResult result);
+    }
 
-        // 测试4：空输入
-        System.out.println("\n=== 测试4：空输入 ===");
-        ParseResult r4 = DataParser.parse("");
-        if (!r4.isSuccess() && !r4.getErrors().isEmpty()) {
-            System.out.println("通过！错误: " + r4.getErrors().get(0));
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
-
-        // 测试5：注释和空行混合
-        System.out.println("\n=== 测试5：注释和空行混合 ===");
-        ParseResult r5 = DataParser.parse("# 这是注释\n\n<a,b>\n\n# 另一行注释\n<b,c>");
-        if (r5.isSuccess() && r5.getEdges().size() == 2) {
-            System.out.println("通过！边数: " + r5.getEdges().size());
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
-
-        // 测试6：全角尖括号
-        System.out.println("\n=== 测试6：全角尖括号 ===");
-        ParseResult r6 = DataParser.parse("＜a,b＞\n＜b,c＞");
-        if (r6.isSuccess() && r6.getEdges().size() == 2) {
-            System.out.println("通过！边数: " + r6.getEdges().size());
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
-
-        // 测试7：行首尾空格容忍
-        System.out.println("\n=== 测试7：行首尾空格容忍 ===");
-        ParseResult r7 = DataParser.parse("  <a,b>  \n   <b,c>   ");
-        if (r7.isSuccess() && r7.getEdges().size() == 2) {
-            System.out.println("通过！边数: " + r7.getEdges().size());
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
-
-        // 测试8：非法输入（缺括号）
-        System.out.println("\n=== 测试8：非法输入（缺括号）===");
-        ParseResult r8 = DataParser.parse("a,b>");
-        if (!r8.isSuccess() && !r8.getErrors().isEmpty()) {
-            System.out.println("通过！错误: " + r8.getErrors().get(0));
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
-
-        // 测试9：非法输入（缺逗号）
-        System.out.println("\n=== 测试9：非法输入（缺逗号）===");
-        ParseResult r9 = DataParser.parse("<a b>");
-        if (!r9.isSuccess() && !r9.getErrors().isEmpty()) {
-            System.out.println("通过！错误: " + r9.getErrors().get(0));
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
-
-        // 测试10：混合输入（合法+非法+注释+空行）
-        System.out.println("\n=== 测试10：混合输入 ===");
-        ParseResult r10 = DataParser.parse("# 注释\n<a,b>\n\nb,c>\n<b,c>\n<a,b>");
-        System.out.println("有效边: " + r10.getEdges().size()
-                + "，错误数: " + r10.getErrors().size()
-                + "，去重数: " + r10.getDuplicateCount());
-        if (r10.getEdges().size() == 2 && r10.getErrors().size() == 1
-                && r10.getDuplicateCount() == 1) {
-            System.out.println("通过！");
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
-
-        // 测试11：使用 figure1.txt 文件解析
-        System.out.println("\n=== 测试11：figure1.txt 文件解析 ===");
-        ParseResult r11 = DataParser.parseFile("data/figure1.txt");
-        if (r11.isSuccess() && r11.getEdges().size() == 16) {
-            System.out.println("通过！边数: " + r11.getEdges().size()
-                    + "，顶点数: " + r11.getAllVertices().size());
-            System.out.println("所有顶点: " + r11.getAllVertices());
-            pass++;
-        } else {
-            System.out.println("失败！边数: " + r11.getEdges().size());
-            if (!r11.isSuccess()) {
-                for (var e : r11.getErrors()) {
-                    System.out.println("  " + e);
+    /**
+     * 执行单个测试用例。
+     *
+     * @param name     用例名称
+     * @param input    输入文本
+     * @param testCase 验证逻辑
+     */
+    private static void test(String name, String input, TestCase testCase) {
+        DataParser parser = new DataParser();
+        try {
+            ParseResult result = parser.parse(input);
+            testCase.check(result);
+            System.out.println("  [PASS] " + name);
+            // 打印错误列表详情（如果有）
+            if (!result.getErrors().isEmpty()) {
+                for (ParseIssue issue : result.getErrors()) {
+                    System.out.println("         → 行号 " + issue.getLineNumber()
+                            + "：" + issue.getMessage());
                 }
             }
-            fail++;
+            // 打印警告列表详情（如果有）
+            if (!result.getWarnings().isEmpty()) {
+                for (ParseIssue issue : result.getWarnings()) {
+                    System.out.println("         → 行号 " + issue.getLineNumber()
+                            + "：" + issue.getMessage());
+                }
+            }
+            // 打印图信息
+            Graph g = result.getGraph();
+            if (g.getVertexCount() > 0) {
+                System.out.println("         → 图信息：节点 " + g.getVertexCount()
+                        + "，边 " + g.getEdgeCount());
+            }
+            passed++;
+        } catch (AssertionError e) {
+            System.out.println("  [FAIL] " + name + " — " + e.getMessage());
+            failed++;
+        } catch (Exception e) {
+            System.out.println("  [ERROR] " + name + " — " + e.getMessage());
+            failed++;
         }
+    }
 
-        // 测试12：null 输入
-        System.out.println("\n=== 测试12：null输入 ===");
-        ParseResult r12 = DataParser.parse(null);
-        if (!r12.isSuccess() && !r12.getErrors().isEmpty()) {
-            System.out.println("通过！错误: " + r12.getErrors().get(0));
-            pass++;
-        } else {
-            System.out.println("失败！");
-            fail++;
-        }
-
-        // 汇总
-        System.out.println("\n========== 测试汇总 ==========");
-        System.out.println("通过: " + pass + "，失败: " + fail);
-        if (fail == 0) {
-            System.out.println("全部通过！");
+    /**
+     * 断言两个值相等。
+     *
+     * @param label    标签
+     * @param actual   实际值
+     * @param expected 期望值
+     */
+    private static void assertEqual(String label, Object actual, Object expected) {
+        if (!actual.equals(expected)) {
+            throw new AssertionError(label + "：期望 " + expected + "，实际 " + actual);
         }
     }
 }
