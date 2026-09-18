@@ -1,29 +1,33 @@
 package algorithm;
 
 import model.Graph;
-import model.Vertex;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 
-// 全拓扑枚举（A 包桩，T-A3）：DFS 回溯，按契约 §四
-// enumerate 在展开搜索前拒绝含环图（返回 StopReason.CYCLE）
+// 全拓扑枚举（A 包 T-A3）：DFS 回溯，按契约 V1.0
+// 展开搜索前拒绝含环图（返回 StopReason.CYCLE）
 // 回溯必须恢复入度和候选状态，不污染原图
 public class AllTopoSorts {
 
     public static EnumerationResult enumerate(Graph graph, int maxResults,
-                                               long timeoutMillis, BooleanSupplier cancelled) {
+                                              long timeoutMillis, BooleanSupplier cancelled) {
         if (maxResults < 0) {
             throw new IllegalArgumentException("maxResults 不能为负数");
         }
         if (timeoutMillis < 0) {
             throw new IllegalArgumentException("timeoutMillis 不能为负数");
         }
-        if (graph == null || graph.isEmpty()) {
-            // 空图：约定有一个空序列
+        if (cancelled == null) {
+            throw new IllegalArgumentException("cancelled 不能为空");
+        }
+
+        // 空图（含 null 防御）：约定正常完成返回 [[]]，生成数 1
+        if (graph == null || graph.getVertexCount() == 0) {
             List<List<String>> empty = new ArrayList<>();
             empty.add(new ArrayList<>());
             return new EnumerationResult(empty, true, StopReason.COMPLETED);
@@ -35,9 +39,10 @@ public class AllTopoSorts {
             return new EnumerationResult(new ArrayList<>(), false, StopReason.CYCLE);
         }
 
-        java.util.Map<String, Integer> inDegree = new java.util.LinkedHashMap<>();
-        for (Vertex v : graph.getVertices()) {
-            inDegree.put(v.getName(), v.inDegree());
+        // 局部入度表，通过 Graph 公开方法读取
+        Map<String, Integer> inDegree = new java.util.LinkedHashMap<>();
+        for (String name : graph.getVertexNames()) {
+            inDegree.put(name, graph.getInDegree(name));
         }
 
         List<List<String>> results = new ArrayList<>();
@@ -63,7 +68,7 @@ public class AllTopoSorts {
         return new EnumerationResult(results, complete, reason);
     }
 
-    private static void backtrack(Graph graph, java.util.Map<String, Integer> inDegree,
+    private static void backtrack(Graph graph, Map<String, Integer> inDegree,
                                   Set<String> visited, List<String> current,
                                   List<List<String>> results,
                                   int maxResults, long deadline, BooleanSupplier cancelled) {
@@ -77,7 +82,7 @@ public class AllTopoSorts {
         }
 
         List<String> candidates = new ArrayList<>();
-        for (java.util.Map.Entry<String, Integer> e : inDegree.entrySet()) {
+        for (Map.Entry<String, Integer> e : inDegree.entrySet()) {
             if (e.getValue() == 0 && !visited.contains(e.getKey())) {
                 candidates.add(e.getKey());
             }
@@ -86,15 +91,16 @@ public class AllTopoSorts {
         for (String pick : candidates) {
             current.add(pick);
             visited.add(pick);
-            Vertex v = graph.getVertex(pick);
+
             List<String> decremented = new ArrayList<>();
-            if (v != null) {
-                for (String next : v.getSuccessors()) {
-                    inDegree.put(next, inDegree.get(next) - 1);
-                    decremented.add(next);
-                }
+            for (String next : graph.getSuccessors(pick)) {
+                inDegree.put(next, inDegree.get(next) - 1);
+                decremented.add(next);
             }
-            backtrack(graph, inDegree, visited, current, results, maxResults, deadline, cancelled);
+            backtrack(graph, inDegree, visited, current, results,
+                    maxResults, deadline, cancelled);
+
+            // 回溯恢复入度
             for (String next : decremented) {
                 inDegree.put(next, inDegree.get(next) + 1);
             }

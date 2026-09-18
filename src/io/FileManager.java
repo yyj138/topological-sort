@@ -1,125 +1,181 @@
 package io;
 
-import algorithm.EnumerationResult;
-import algorithm.StopReason;
-
-import javax.swing.JFileChooser;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import java.awt.Component;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.io.*;
 import java.util.List;
 
-// 文件读写（D 包桩，T-D2）：打开/保存数据、导出结果
-// 导出需写明是否完整和停止原因（契约 §七）
+/**
+ * 文件管理工具类。
+ * 负责打开文件（读入文本）、保存当前数据、导出拓扑排序结果（txt/csv），
+ * 并记录最近打开路径便于再次打开。
+ *
+ * @author huxixi19
+ */
 public class FileManager {
 
-    private static String lastOpenPath = System.getProperty("user.dir");
+    /** 最近一次打开的文件路径 */
+    private static String lastOpenedPath = null;
 
-    public static String openFile(Component parent) {
-        JFileChooser chooser = createChooser("文本文件", "txt", "csv");
-        if (chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) {
-            return openFileDirect(chooser.getSelectedFile());
+    /**
+     * 从文件读取文本内容。
+     *
+     * @param file 要读取的文件
+     * @return 文件内容字符串
+     * @throws IOException 读取失败时抛出
+     */
+    public static String readFile(File file) throws IOException {
+        if (file == null) {
+            throw new IOException("未选择文件，请选择一个文件后再试");
         }
-        return null;
-    }
-
-    public static String openFileDirect(File file) {
-        try {
-            String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-            lastOpenPath = file.getParent();
-            return content;
-        } catch (IOException e) {
-            throw new RuntimeException("读取文件失败: " + e.getMessage(), e);
+        if (!file.exists()) {
+            throw new IOException("文件不存在：" + file.getAbsolutePath());
         }
-    }
-
-    public static boolean saveFile(Component parent, String content) {
-        JFileChooser chooser = createChooser("文本文件", "txt");
-        chooser.setSelectedFile(new File("data.txt"));
-        if (chooser.showSaveDialog(parent) == JFileChooser.APPROVE_OPTION) {
-            return saveFileDirect(ensureExt(chooser.getSelectedFile(), ".txt"), content);
+        if (!file.isFile()) {
+            throw new IOException("路径不是文件：" + file.getAbsolutePath());
         }
-        return false;
-    }
 
-    public static boolean saveFileDirect(File file, String content) {
-        try (BufferedWriter w = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
-            w.write(content == null ? "" : content);
-            lastOpenPath = file.getParent();
-            return true;
-        } catch (IOException e) {
-            throw new RuntimeException("保存文件失败: " + e.getMessage(), e);
-        }
-    }
-
-    // 导出枚举结果：写明完整性 + 停止原因
-    public static boolean exportResults(Component parent, EnumerationResult result, String format) {
-        String ext = "csv".equalsIgnoreCase(format) ? "csv" : "txt";
-        JFileChooser chooser = createChooser(ext.toUpperCase() + " 文件", ext);
-        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmm").format(new Date());
-        chooser.setSelectedFile(new File("topo_results_" + timestamp + "." + ext));
-        if (chooser.showSaveDialog(parent) == JFileChooser.APPROVE_OPTION) {
-            return exportResultsDirect(ensureExt(chooser.getSelectedFile(), "." + ext), result, format);
-        }
-        return false;
-    }
-
-    public static boolean exportResultsDirect(File file, EnumerationResult result, String format) {
-        try (BufferedWriter w = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
-            List<List<String>> sequences = result.getSequences();
-            StopReason reason = result.getStopReason();
-            boolean complete = result.isComplete();
-
-            if ("csv".equalsIgnoreCase(format)) {
-                w.write("# 完整性=" + (complete ? "完整" : "不完整")
-                        + ", 停止原因=" + reason + ", 生成数=" + result.getGeneratedCount());
-                w.newLine();
-                for (List<String> seq : sequences) {
-                    w.write(String.join(",", seq));
-                    w.newLine();
-                }
-            } else {
-                w.write("# 拓扑排序结果");
-                w.newLine();
-                w.write("# 完整性: " + (complete ? "完整" : "不完整"));
-                w.newLine();
-                w.write("# 停止原因: " + reason);
-                w.newLine();
-                w.write("# 生成数: " + result.getGeneratedCount());
-                w.newLine();
-                w.newLine();
-                for (int i = 0; i < sequences.size(); i++) {
-                    w.write((i + 1) + ". " + String.join(" -> ", sequences.get(i)));
-                    w.newLine();
-                }
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(new FileInputStream(file), "UTF-8"))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append("\n");
             }
-            lastOpenPath = file.getParent();
-            return true;
-        } catch (IOException e) {
-            throw new RuntimeException("导出结果失败: " + e.getMessage(), e);
+        }
+
+        lastOpenedPath = file.getAbsolutePath();
+        return sb.toString();
+    }
+
+    /**
+     * 将文本内容保存到文件。
+     *
+     * @param file    目标文件
+     * @param content 要保存的文本内容
+     * @throws IOException 保存失败时抛出
+     */
+    public static void saveFile(File file, String content) throws IOException {
+        if (file == null) {
+            throw new IOException("未指定保存路径，请选择保存位置后再试");
+        }
+        if (content == null) {
+            content = "";
+        }
+
+        // 确保父目录存在
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+
+        try (BufferedWriter bw = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(file), "UTF-8"))) {
+            bw.write(content);
+            bw.flush();
         }
     }
 
-    public static String getLastOpenPath() { return lastOpenPath; }
-    public static void setLastOpenPath(String path) { lastOpenPath = path; }
+    /**
+     * 导出拓扑排序结果为 txt 格式（UTF-8，每条序列一行）。
+     *
+     * @param file    目标文件
+     * @param results 拓扑排序结果列表，每个元素是一条完整序列
+     * @throws IOException 写入失败时抛出
+     */
+    public static void exportTxt(File file, List<String> results) throws IOException {
+        if (file == null) {
+            throw new IOException("未指定导出路径，请选择保存位置后再试");
+        }
+        if (results == null || results.isEmpty()) {
+            throw new IOException("没有可导出的拓扑排序结果");
+        }
 
-    private static JFileChooser createChooser(String desc, String... exts) {
-        JFileChooser chooser = new JFileChooser(lastOpenPath);
-        chooser.setFileFilter(new FileNameExtensionFilter(desc, exts));
-        return chooser;
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+
+        try (BufferedWriter bw = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(file), "UTF-8"))) {
+            bw.write("# 拓扑排序结果");
+            bw.newLine();
+            bw.write("# 共 " + results.size() + " 条序列");
+            bw.newLine();
+            bw.newLine();
+            for (int i = 0; i < results.size(); i++) {
+                bw.write("序列 " + (i + 1) + ": " + results.get(i));
+                bw.newLine();
+            }
+            bw.flush();
+        }
     }
 
-    private static File ensureExt(File file, String ext) {
-        String name = file.getName();
-        if (!name.toLowerCase().endsWith(ext)) {
-            return new File(file.getParentFile(), name + ext);
+    /**
+     * 导出拓扑排序结果为 csv 格式（UTF-8 BOM，可被 Excel 正常打开）。
+     * 格式：每行一条序列，顶点用逗号分隔。
+     *
+     * @param file    目标文件
+     * @param results 拓扑排序结果列表，每个元素是一条完整序列
+     * @throws IOException 写入失败时抛出
+     */
+    public static void exportCsv(File file, List<String> results) throws IOException {
+        if (file == null) {
+            throw new IOException("未指定导出路径，请选择保存位置后再试");
         }
-        return file;
+        if (results == null || results.isEmpty()) {
+            throw new IOException("没有可导出的拓扑排序结果");
+        }
+
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file))) {
+            // 写入 UTF-8 BOM，确保 Excel 正确识别编码
+            bos.write(new byte[] { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF });
+
+            OutputStreamWriter osw = new OutputStreamWriter(bos, "UTF-8");
+            BufferedWriter bw = new BufferedWriter(osw);
+
+            // 表头
+            bw.write("序号,拓扑排序序列");
+            bw.newLine();
+
+            for (int i = 0; i < results.size(); i++) {
+                String sequence = results.get(i);
+                // csv 中如果顶点名包含逗号，需要加引号包裹
+                if (sequence.contains(",")) {
+                    bw.write((i + 1) + ",\"" + sequence + "\"");
+                } else {
+                    bw.write((i + 1) + "," + sequence);
+                }
+                bw.newLine();
+            }
+
+            bw.flush();
+        }
+    }
+
+    /**
+     * 获取最近一次打开的文件路径。
+     *
+     * @return 文件路径字符串，如果没有打开过文件则返回 null
+     */
+    public static String getLastOpenedPath() {
+        return lastOpenedPath;
+    }
+
+    /**
+     * 获取最近打开路径对应的目录，便于下次打开时定位。
+     *
+     * @return 目录路径，如果没有记录则返回 null
+     */
+    public static String getLastOpenedDirectory() {
+        if (lastOpenedPath == null) {
+            return null;
+        }
+        File file = new File(lastOpenedPath);
+        File parent = file.getParentFile();
+        return parent != null ? parent.getAbsolutePath() : null;
     }
 }

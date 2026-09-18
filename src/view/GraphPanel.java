@@ -1,8 +1,6 @@
 package view;
 
-import model.Edge;
 import model.Graph;
-import model.Vertex;
 
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
@@ -25,14 +23,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-// 关系图绘制（C 包桩，T-C1~T-C5）：按契约 §七
-// setGraph 接收关系图；setHighlightedCycle 标记环路径节点与边
-// exportPNG 导出完整关系图
+// 关系图绘制（C 包 T-C1~T-C5 桩）：按契约 V1.0 §七
+// 静态画布：环形布局，标红环路径，选中序列高亮
+// 分层布局、悬停与点击等动态交互由 C 后续迭代
 public class GraphPanel extends JPanel {
 
     private Graph graph;
+    // 环高亮：闭合序列如 [A,B,C,A]
     private List<String> highlightedCycle = new ArrayList<>();
-    // 选中序列高亮：B/C 另行对接（契约 §七未定义）
+    // 选中序列高亮：B/C 另行对接
     private List<String> selectedOrder = new ArrayList<>();
     private final Map<String, Point> nodePositions = new HashMap<>();
 
@@ -50,15 +49,17 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
-    // 契约 §七：环高亮，接收闭合节点序列如 [A,B,C,A]
+    // 契约 §七：环高亮，接收闭合节点序列
     public void setHighlightedCycle(List<String> closedCycle) {
-        this.highlightedCycle = closedCycle == null ? new ArrayList<>() : new ArrayList<>(closedCycle);
+        this.highlightedCycle = closedCycle == null
+                ? new ArrayList<>() : new ArrayList<>(closedCycle);
         repaint();
     }
 
-    // B/C 另行对接：选中序列高亮（不在契约中，由 C 最终确认）
+    // B/C 另行对接：选中序列高亮
     public void setSelectedOrder(List<String> order) {
-        this.selectedOrder = order == null ? new ArrayList<>() : new ArrayList<>(order);
+        this.selectedOrder = order == null
+                ? new ArrayList<>() : new ArrayList<>(order);
         repaint();
     }
 
@@ -70,21 +71,21 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
-    // 环形布局（桩）
+    // 静态环形布局（桩，C 后续替换为分层布局）
     private void layoutNodes() {
         nodePositions.clear();
-        if (graph == null || graph.isEmpty()) return;
+        if (graph == null || graph.getVertexCount() == 0) return;
         int n = graph.getVertexCount();
         int radius = Math.min(getWidth(), getHeight()) / 2 - 60;
         if (radius < 80) radius = 80;
         int cx = getWidth() / 2;
         int cy = getHeight() / 2;
         int i = 0;
-        for (Vertex v : graph.getVertices()) {
+        for (String name : graph.getVertexNames()) {
             double angle = 2 * Math.PI * i / n;
             int x = cx + (int) (radius * Math.cos(angle));
             int y = cy + (int) (radius * Math.sin(angle));
-            nodePositions.put(v.getName(), new Point(x, y));
+            nodePositions.put(name, new Point(x, y));
             i++;
         }
     }
@@ -93,12 +94,13 @@ public class GraphPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        if (graph == null || graph.isEmpty()) {
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        if (graph == null || graph.getVertexCount() == 0) {
             drawEmptyHint(g2);
             return;
         }
-        if (nodePositions.isEmpty() || nodePositions.size() != graph.getVertexCount()) {
+        if (nodePositions.size() != graph.getVertexCount()) {
             layoutNodes();
         }
         drawEdges(g2);
@@ -108,7 +110,7 @@ public class GraphPanel extends JPanel {
     private void drawEmptyHint(Graphics2D g2) {
         g2.setColor(new Color(150, 150, 150));
         g2.setFont(new Font("Microsoft YaHei", Font.PLAIN, 14));
-        String hint = "请载入或输入 <a,b> 关系数据后点击「计算」";
+        String hint = "请载入或输入 <a,b> 关系数据后点击计算";
         int w = g2.getFontMetrics().stringWidth(hint);
         g2.drawString(hint, (getWidth() - w) / 2, getHeight() / 2);
     }
@@ -118,24 +120,26 @@ public class GraphPanel extends JPanel {
         Stroke cycleStroke = new BasicStroke(2.5f);
         Set<String> cycleEdges = collectCycleEdges();
 
-        for (Edge e : graph.getEdges()) {
-            Point from = nodePositions.get(e.getFrom());
-            Point to = nodePositions.get(e.getTo());
-            if (from == null || to == null) continue;
-            boolean inCycle = cycleEdges.contains(e.getFrom() + "|" + e.getTo());
-            g2.setStroke(inCycle ? cycleStroke : solid);
-            g2.setColor(inCycle ? Color.RED : new Color(80, 80, 80));
-            if (e.isSelfLoop()) drawSelfLoop(g2, from);
-            else drawArrow(g2, from.x, from.y, to.x, to.y);
+        for (String from : graph.getVertexNames()) {
+            Point pFrom = nodePositions.get(from);
+            if (pFrom == null) continue;
+            for (String to : graph.getSuccessors(from)) {
+                Point pTo = nodePositions.get(to);
+                if (pTo == null) continue;
+                boolean inCycle = cycleEdges.contains(from + "|" + to);
+                g2.setStroke(inCycle ? cycleStroke : solid);
+                g2.setColor(inCycle ? Color.RED : new Color(80, 80, 80));
+                if (from.equals(to)) drawSelfLoop(g2, pFrom);
+                else drawArrow(g2, pFrom.x, pFrom.y, pTo.x, pTo.y);
+            }
         }
     }
 
     private void drawNodes(Graphics2D g2) {
         Set<String> cycleNodes = new HashSet<>(highlightedCycle);
-        for (Vertex v : graph.getVertices()) {
-            Point p = nodePositions.get(v.getName());
+        for (String name : graph.getVertexNames()) {
+            Point p = nodePositions.get(name);
             if (p == null) continue;
-            String name = v.getName();
             boolean inCycle = cycleNodes.contains(name);
             boolean isSelected = selectedOrder.contains(name);
 
@@ -181,8 +185,10 @@ public class GraphPanel extends JPanel {
         int aLen = 10;
         double a1 = ang + Math.PI - 0.4;
         double a2 = ang + Math.PI + 0.4;
-        int[] xs = {ex, (int)(ex + aLen * Math.cos(a1)), (int)(ex + aLen * Math.cos(a2))};
-        int[] ys = {ey, (int)(ey + aLen * Math.sin(a1)), (int)(ey + aLen * Math.sin(a2))};
+        int[] xs = {ex, (int) (ex + aLen * Math.cos(a1)),
+                (int) (ex + aLen * Math.cos(a2))};
+        int[] ys = {ey, (int) (ey + aLen * Math.sin(a1)),
+                (int) (ey + aLen * Math.sin(a2))};
         g2.fillPolygon(xs, ys, 3);
     }
 
@@ -200,7 +206,8 @@ public class GraphPanel extends JPanel {
         int h = Math.max(getHeight(), 500);
         BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = img.createGraphics();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setColor(Color.WHITE);
         g2.fillRect(0, 0, w, h);
         paintComponent(g2);

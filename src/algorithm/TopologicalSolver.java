@@ -1,39 +1,37 @@
 package algorithm;
 
 import model.Graph;
-import model.Vertex;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-// Kahn 拓扑排序（A 包桩，T-A2）：O(V+E)，按契约 §三
-// 无环返回完整序列；含环 hasCycle=true 且 order 为空
+// Kahn 拓扑排序（A 包 T-A2）：O(V+E)，按契约 V1.0
+// 只通过 Graph 公开方法读图，入度使用局部副本，不改变原图
 public class TopologicalSolver {
 
     public static TopoResult kahnSort(Graph graph) {
-        if (graph == null || graph.isEmpty()) {
+        if (graph == null || graph.getVertexCount() == 0) {
             return new TopoResult(new ArrayList<>(), false);
         }
 
-        java.util.Map<String, Integer> inDegree = new java.util.LinkedHashMap<>();
-        for (Vertex v : graph.getVertices()) {
-            inDegree.put(v.getName(), v.inDegree());
-        }
+        List<String> names = graph.getVertexNames();
 
+        // 局部入度表
+        java.util.Map<String, Integer> inDegree = new java.util.LinkedHashMap<>();
         Queue<String> queue = new LinkedList<>();
-        for (java.util.Map.Entry<String, Integer> e : inDegree.entrySet()) {
-            if (e.getValue() == 0) queue.add(e.getKey());
+        for (String name : names) {
+            int d = graph.getInDegree(name);
+            inDegree.put(name, d);
+            if (d == 0) queue.add(name);
         }
 
         List<String> result = new ArrayList<>();
         while (!queue.isEmpty()) {
             String cur = queue.poll();
             result.add(cur);
-            Vertex v = graph.getVertex(cur);
-            if (v == null) continue;
-            for (String next : v.getSuccessors()) {
+            for (String next : graph.getSuccessors(cur)) {
                 int d = inDegree.get(next) - 1;
                 inDegree.put(next, d);
                 if (d == 0) queue.add(next);

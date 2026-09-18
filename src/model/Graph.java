@@ -1,59 +1,70 @@
 package model;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-// 图（A 包桩，T-A1）：邻接表，按契约 §二
-// addEdge 自动补齐节点、去重（重复返回 false），自环作为边保留
+// 图（A 包 T-A1）：邻接表，按接口契约 V1.0 与图数据结构设计实现
+// 不维护独立 Edge 列表，遍历节点后继即可得全部边；边数单独计数
 public class Graph {
 
-    private final Map<String, Vertex> vertices = new LinkedHashMap<>();
-    private final Set<Edge> edges = new LinkedHashSet<>();
+    private final LinkedHashMap<String, Vertex> vertices = new LinkedHashMap<>();
+    private int edgeCount = 0;
 
     // 新顶点返回 true；已存在返回 false
     public boolean addVertex(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("顶点名不能为空");
-        }
-        name = name.trim();
-        if (vertices.containsKey(name)) return false;
-        vertices.put(name, new Vertex(name));
+        String normalized = validateName(name);
+        if (vertices.containsKey(normalized)) return false;
+        vertices.put(normalized, new Vertex(normalized));
         return true;
     }
 
     // 新边返回 true；重复边返回 false 且不重复增加入度
+    // 两个名称先验证，再变更图
     public boolean addEdge(String from, String to) {
-        addVertex(from);
-        addVertex(to);
-        Edge edge = new Edge(from, to);
-        if (!edges.add(edge)) return false;
-        vertices.get(from).addSuccessor(to);
-        vertices.get(to).addPredecessor(from);
+        String f = validateName(from);
+        String t = validateName(to);
+
+        Vertex vf = vertices.get(f);
+        if (vf == null) {
+            vf = new Vertex(f);
+            vertices.put(f, vf);
+        }
+        Vertex vt = vertices.get(t);
+        if (vt == null) {
+            vt = new Vertex(t);
+            vertices.put(t, vt);
+        }
+
+        // Set.add 去重：重复后继即重复边
+        if (!vf.addSuccessor(t)) return false;
+        vt.addPredecessor(f);
+        edgeCount++;
         return true;
     }
 
+    // 删除已有边返回 true；关系不存在返回 false；节点保留
     public boolean removeEdge(String from, String to) {
-        Edge edge = new Edge(from, to);
-        if (!edges.remove(edge)) return false;
-        Vertex f = vertices.get(from);
-        Vertex t = vertices.get(to);
-        if (f != null) f.removeSuccessor(to);
-        if (t != null) t.removePredecessor(from);
+        String f = validateName(from);
+        String t = validateName(to);
+
+        Vertex vf = vertices.get(f);
+        Vertex vt = vertices.get(t);
+        if (vf == null || vt == null) return false;
+        if (!vf.removeSuccessor(t)) return false;
+        vt.removePredecessor(f);
+        edgeCount--;
         return true;
     }
 
+    // 全部节点名称（独立副本，按录入顺序）
     public List<String> getVertexNames() {
         return new ArrayList<>(vertices.keySet());
     }
 
-    // 后继列表（只读副本）
+    // 直接后继名称（独立副本）
     public List<String> getSuccessors(String name) {
-        Vertex v = vertices.get(name);
+        Vertex v = vertices.get(validateName(name));
         if (v == null) {
             throw new IllegalArgumentException("未知节点: " + name);
         }
@@ -61,7 +72,7 @@ public class Graph {
     }
 
     public int getInDegree(String name) {
-        Vertex v = vertices.get(name);
+        Vertex v = vertices.get(validateName(name));
         if (v == null) {
             throw new IllegalArgumentException("未知节点: " + name);
         }
@@ -69,7 +80,7 @@ public class Graph {
     }
 
     public int getOutDegree(String name) {
-        Vertex v = vertices.get(name);
+        Vertex v = vertices.get(validateName(name));
         if (v == null) {
             throw new IllegalArgumentException("未知节点: " + name);
         }
@@ -77,15 +88,27 @@ public class Graph {
     }
 
     public int getVertexCount() { return vertices.size(); }
-    public int getEdgeCount() { return edges.size(); }
-    public boolean isEmpty() { return vertices.isEmpty(); }
+    public int getEdgeCount() { return edgeCount; }
 
-    // 以下为桩内部使用，不在跨模块契约中，供算法层遍历
-    public Vertex getVertex(String name) { return vertices.get(name); }
-    public java.util.Collection<Vertex> getVertices() {
-        return Collections.unmodifiableCollection(vertices.values());
+    // 名称校验：trim 后保留内部空格，区分大小写；拒绝格式分隔符与控制字符
+    private static String validateName(String name) {
+        if (name == null) {
+            throw new IllegalArgumentException("顶点名不能为空");
+        }
+        String n = name.trim();
+        if (n.isEmpty()) {
+            throw new IllegalArgumentException("顶点名不能为空");
+        }
+        for (int i = 0; i < n.length(); i++) {
+            char c = n.charAt(i);
+            if (c == '<' || c == '>' || c == ','
+                    || c == '\uFF1C' || c == '\uFF1E' || c == '\uFF0C'
+                    || Character.isISOControl(c)) {
+                throw new IllegalArgumentException("顶点名含非法字符: " + c);
+            }
+        }
+        return n;
     }
-    public Set<Edge> getEdges() { return Collections.unmodifiableSet(edges); }
 
     @Override
     public String toString() {

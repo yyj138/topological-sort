@@ -26,9 +26,9 @@ public class MainFrame extends JFrame {
 
     private JMenuItem miOpen, miSave, miExportPng, miExportResult, miExit;
     private JMenuItem miClear, miSyncToTable, miSyncToText;
-    private JMenuItem miCompute, miClearResult;
+    private JMenuItem miCompute, miCancel, miClearResult;
     private JMenuItem miAbout, miHelp;
-    private javax.swing.JButton toolOpen, toolSave, toolCompute,
+    private javax.swing.JButton toolOpen, toolSave, toolCompute, toolCancel,
             toolExportPng, toolExportResult;
 
     public MainFrame() {
@@ -85,8 +85,10 @@ public class MainFrame extends JFrame {
         mCalc.setMnemonic('C');
         UIStyle.styleMenu(mCalc);
         miCompute = createMenuItem("计算拓扑排序", 'C');
+        miCancel = createMenuItem("取消计算");
+        miCancel.setEnabled(false);
         miClearResult = createMenuItem("清空结果");
-        mCalc.add(miCompute); mCalc.addSeparator();
+        mCalc.add(miCompute); mCalc.add(miCancel); mCalc.addSeparator();
         mCalc.add(miClearResult);
         bar.add(mCalc);
 
@@ -120,7 +122,9 @@ public class MainFrame extends JFrame {
         toolSave = makeTextButton("保存");
         bar.add(toolOpen); bar.add(toolSave); bar.addSeparator();
         toolCompute = makeTextButton("计算");
-        bar.add(toolCompute); bar.addSeparator();
+        toolCancel = makeTextButton("取消计算");
+        toolCancel.setEnabled(false);
+        bar.add(toolCompute); bar.add(toolCancel); bar.addSeparator();
         toolExportPng = makeTextButton("导出图片");
         toolExportResult = makeTextButton("导出结果");
         bar.add(toolExportPng); bar.add(toolExportResult);
@@ -180,6 +184,7 @@ public class MainFrame extends JFrame {
     public JMenuItem getMiSyncToTable() { return miSyncToTable; }
     public JMenuItem getMiSyncToText() { return miSyncToText; }
     public JMenuItem getMiCompute() { return miCompute; }
+    public JMenuItem getMiCancel() { return miCancel; }
     public JMenuItem getMiClearResult() { return miClearResult; }
     public JMenuItem getMiAbout() { return miAbout; }
     public JMenuItem getMiHelp() { return miHelp; }
@@ -187,6 +192,7 @@ public class MainFrame extends JFrame {
     public javax.swing.JButton getToolOpen() { return toolOpen; }
     public javax.swing.JButton getToolSave() { return toolSave; }
     public javax.swing.JButton getToolCompute() { return toolCompute; }
+    public javax.swing.JButton getToolCancel() { return toolCancel; }
     public javax.swing.JButton getToolExportPng() { return toolExportPng; }
     public javax.swing.JButton getToolExportResult() { return toolExportResult; }
 

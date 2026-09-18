@@ -41,7 +41,8 @@ public final class UIStyle {
     public static final Font  FONT_SUBTITLE  = new Font(FONT_FAMILY, Font.BOLD, 13);
     public static final Font  FONT_BODY      = new Font(FONT_FAMILY, Font.PLAIN, 13);
     public static final Font  FONT_SMALL     = new Font(FONT_FAMILY, Font.PLAIN, 12);
-    public static final Font  FONT_MONO      = new Font("Consolas", Font.PLAIN, 13);
+    // 逻辑等宽字体：ASCII 等宽，同时可回退显示中文（物理 Consolas 不含中文字形会显示方块）
+    public static final Font  FONT_MONO      = new Font(Font.MONOSPACED, Font.PLAIN, 13);
     public static final Font  FONT_STATUS    = new Font(FONT_FAMILY, Font.PLAIN, 12);
 
     // 间距

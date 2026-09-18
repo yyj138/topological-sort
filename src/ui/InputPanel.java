@@ -2,9 +2,6 @@ package ui;
 
 import io.DataParser;
 import io.FileManager;
-import io.ParseResult;
-import model.Edge;
-import model.Graph;
 import util.UIStyle;
 
 import javax.swing.AbstractAction;
@@ -13,6 +10,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -21,13 +19,15 @@ import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
+import java.io.File;
 
-// 输入面板（T-B2）：文本区+表格视图，载入/保存/同步/增删行按钮
-// 按契约 §六：DataParser 为实例方法 parse()，直接返回 Graph + 问题清单
+// 输入面板（T-B2）：文本区 + 表格视图，载入/保存/同步/增删行
+// 直接复用 D 的 DataParser 与 FileManager（9.17 会议决议）
 public class InputPanel extends JPanel {
 
     private final JTextArea textArea = new JTextArea();
@@ -38,18 +38,19 @@ public class InputPanel extends JPanel {
     };
     private final JTable table = new JTable(tableModel);
 
-    private final JButton btnLoadFile   = new JButton("载入文件");
-    private final JButton btnSaveData   = new JButton("保存数据");
-    private final JButton btnToTable    = new JButton("文本 -> 表格");
-    private final JButton btnToText     = new JButton("表格 -> 文本");
-    private final JButton btnAddRow     = new JButton("+ 增行");
-    private final JButton btnDelRow     = new JButton("- 删行");
-    private final JButton btnClear      = new JButton("清空");
+    private final JButton btnLoadFile = new JButton("载入文件");
+    private final JButton btnSaveData = new JButton("保存数据");
+    private final JButton btnToTable  = new JButton("文本 -> 表格");
+    private final JButton btnToText   = new JButton("表格 -> 文本");
+    private final JButton btnAddRow   = new JButton("+ 增行");
+    private final JButton btnDelRow   = new JButton("- 删行");
+    private final JButton btnClear    = new JButton("清空");
 
     public InputPanel() {
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(
-                UIStyle.GAP_SMALL, UIStyle.GAP_SMALL, UIStyle.GAP_SMALL, UIStyle.GAP_SMALL));
+                UIStyle.GAP_SMALL, UIStyle.GAP_SMALL,
+                UIStyle.GAP_SMALL, UIStyle.GAP_SMALL));
         setBackground(UIStyle.BG_MAIN);
 
         add(buildTopBar(), BorderLayout.NORTH);
@@ -86,14 +87,15 @@ public class InputPanel extends JPanel {
         textArea.setBackground(UIStyle.BG_PANEL);
         textArea.setForeground(UIStyle.FG_PRIMARY);
         textArea.setLineWrap(false);
-        textArea.setText("# 请按 <a,b> 格式输入数据，每行一条关系，# 开头为注释\n# 示例：\n<a,b>\n<c,d>\n<a,c>\n");
+        textArea.setText(defaultHint());
         JScrollPane textScroll = new JScrollPane(textArea);
         JPanel textPanel = new JPanel(new BorderLayout());
         textPanel.setBackground(UIStyle.BG_PANEL);
         JLabel textTitle = new JLabel("  文本编辑区");
         UIStyle.styleSubtitleLabel(textTitle);
         textTitle.setBorder(BorderFactory.createEmptyBorder(
-                UIStyle.GAP_TINY, UIStyle.GAP_TINY, UIStyle.GAP_TINY, UIStyle.GAP_TINY));
+                UIStyle.GAP_TINY, UIStyle.GAP_TINY,
+                UIStyle.GAP_TINY, UIStyle.GAP_TINY));
         textPanel.add(textTitle, BorderLayout.NORTH);
         textPanel.add(textScroll, BorderLayout.CENTER);
 
@@ -106,7 +108,8 @@ public class InputPanel extends JPanel {
         JLabel tableTitle = new JLabel("  表格编辑视图");
         UIStyle.styleSubtitleLabel(tableTitle);
         tableTitle.setBorder(BorderFactory.createEmptyBorder(
-                UIStyle.GAP_TINY, UIStyle.GAP_TINY, UIStyle.GAP_TINY, UIStyle.GAP_TINY));
+                UIStyle.GAP_TINY, UIStyle.GAP_TINY,
+                UIStyle.GAP_TINY, UIStyle.GAP_TINY));
         tablePanel.add(tableTitle, BorderLayout.NORTH);
         tablePanel.add(tableScroll, BorderLayout.CENTER);
 
@@ -124,8 +127,25 @@ public class InputPanel extends JPanel {
         table.setDefaultEditor(Object.class, new DefaultCellEditor(cellField));
     }
 
+    // 预设中文提示：第一行即格式说明，全部以 # 注释
+    private static String defaultHint() {
+        return "# 请按 <a,b> 格式输入数据，每行一条关系，# 开头为注释\n"
+                + "# a 为前驱，b 为后继，如 <a,b> 表示有向边 a -> b\n"
+                + "# 示例：\n"
+                + "<MA 140,MA 141>\n"
+                + "<MA 141,CS 150>\n";
+    }
+
     public String getInputText() { return textArea.getText(); }
     public void setInputText(String text) { textArea.setText(text); }
+
+    // 供主菜单/工具栏复用
+    public void requestLoadFile() { loadFile(this); }
+    public void requestSaveFile() { saveFile(this); }
+    public void clearAll() {
+        textArea.setText("");
+        tableModel.setRowCount(0);
+    }
 
     // 默认行为：载入/保存/同步/增删行/清空
     public void installDefaultSyncActions(Component dialogParent) {
@@ -164,47 +184,61 @@ public class InputPanel extends JPanel {
         UIStyle.styleButton(btnClear);
 
         btnLoadFile.setAction(new AbstractAction("载入文件") {
-            @Override public void actionPerformed(ActionEvent e) {
-                try {
-                    String content = FileManager.openFile(dialogParent);
-                    if (content != null) {
-                        textArea.setText(content);
-                        syncTextToTable();
-                    }
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(dialogParent,
-                            "载入文件失败: " + ex.getMessage(),
-                            "错误", JOptionPane.ERROR_MESSAGE);
-                }
-            }
+            @Override public void actionPerformed(ActionEvent e) { loadFile(dialogParent); }
         });
         UIStyle.styleButton(btnLoadFile);
 
         btnSaveData.setAction(new AbstractAction("保存数据") {
-            @Override public void actionPerformed(ActionEvent e) {
-                try {
-                    if (!FileManager.saveFile(dialogParent, getInputText())) return;
-                    JOptionPane.showMessageDialog(dialogParent,
-                            "保存成功", "提示", JOptionPane.INFORMATION_MESSAGE);
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(dialogParent,
-                            "保存失败: " + ex.getMessage(),
-                            "错误", JOptionPane.ERROR_MESSAGE);
-                }
-            }
+            @Override public void actionPerformed(ActionEvent e) { saveFile(dialogParent); }
         });
         UIStyle.styleButton(btnSaveData);
     }
 
-    // 按契约 §六：DataParser.parse() 返回 ParseResult，从 getGraph().getEdges() 取边
+    private void loadFile(Component parent) {
+        JFileChooser chooser = new JFileChooser(FileManager.getLastOpenedDirectory());
+        chooser.setFileFilter(new FileNameExtensionFilter("文本文件", "txt", "csv"));
+        if (chooser.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION) return;
+        File file = chooser.getSelectedFile();
+        try {
+            String content = FileManager.readFile(file);
+            textArea.setText(content);
+            syncTextToTable();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(parent,
+                    "载入文件失败: " + ex.getMessage(),
+                    "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void saveFile(Component parent) {
+        JFileChooser chooser = new JFileChooser(FileManager.getLastOpenedDirectory());
+        chooser.setSelectedFile(new File("data.txt"));
+        chooser.setFileFilter(new FileNameExtensionFilter("文本文件", "txt"));
+        if (chooser.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return;
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".txt")) {
+            file = new File(file.getParentFile(), file.getName() + ".txt");
+        }
+        try {
+            FileManager.saveFile(file, getInputText());
+            JOptionPane.showMessageDialog(parent, "保存成功",
+                    "提示", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(parent,
+                    "保存失败: " + ex.getMessage(),
+                    "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // 用 D 解析器把文本解析为边（含自环），填入表格
     public void syncTextToTable() {
-        DataParser parser = new DataParser();
-        ParseResult result = parser.parse(textArea.getText());
+        DataParser.ParseResult result = DataParser.parse(textArea.getText());
         tableModel.setRowCount(0);
-        Graph graph = result.getGraph();
-        if (graph == null) return;
-        for (Edge edge : graph.getEdges()) {
-            tableModel.addRow(new Object[]{edge.getFrom(), edge.getTo()});
+        for (DataParser.Edge edge : result.getEdges()) {
+            tableModel.addRow(new Object[]{edge.getSource(), edge.getTarget()});
+        }
+        for (DataParser.Edge selfLoop : result.getSelfLoops()) {
+            tableModel.addRow(new Object[]{selfLoop.getSource(), selfLoop.getTarget()});
         }
     }
 
