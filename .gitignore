@@ -37,5 +37,4 @@ Thumbs.db
 
 # Course reference materials (not deliverables)
 *.pdf
-*模板.doc
-会议记录-模板.doc
+*.doc
