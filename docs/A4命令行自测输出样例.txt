@@ -1,0 +1,26 @@
+PASS 1: empty graph
+PASS 2: isolated vertices
+PASS 3: DAG with converging paths
+Self-loop: edges=[A -> A], cycle=[A, A]
+PASS 4: self-loop path
+Two-vertex cycle: edges=[A -> B, B -> A], cycle=[A, B, A]
+PASS 5: two-vertex cycle path
+Longer cycle: edges=[A -> B, B -> C, C -> A], cycle=[A, B, C, A]
+PASS 6: longer cycle path
+Prefix excluded: edges=[Start -> A, A -> B, B -> C, C -> B], cycle=[B, C, B]
+PASS 7: exclude the prefix before the cycle
+PASS 8: exclude downstream vertices
+PASS 9: cycle in a later disconnected component
+PASS 10: edges to black vertices are not back edges
+PASS 11: multiple cycles return a reproducible valid path
+PASS 12: duplicate edges do not duplicate cycle nodes
+PASS 13: Chinese names, internal spaces and case
+PASS 14: repeated calls and reuse after graph edits
+PASS 15: read-only results independent of graph edits
+PASS 16: null graph rejected explicitly
+PASS 17: 10000-vertex acyclic chain
+Deep path: vertices=10000, edges=10000, cycle vertices=1000, closed path entries=1001
+PASS 18: 10000-vertex path leading to a cycle without recursion
+Transitive-closure oracle: graphs=512, DAGs=25, cyclic=487, every returned path verified.
+PASS 19: all 512 three-vertex graphs checked by transitive closure
+PASS: 19/19 cases
