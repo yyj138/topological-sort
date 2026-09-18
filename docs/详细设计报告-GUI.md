@@ -46,69 +46,79 @@
 ┌─────────────────────────────────────────────────────────────┐
 │  文件(F)  编辑(E)  计算(C)  帮助(H)             [菜单栏]      │
 ├─────────────────────────────────────────────────────────────┤
-│ [📂打开] [💾保存] | [▶计算] | [🖼导出图片] [📊导出结果]  [工具栏]│
+│ [打开] [保存] | [计算] [取消计算] | [导出图片] [导出结果]      │
 ├──────────────────────────┬──────────────────────────────────┤
-│                          │                                  │
-│  ┌─[文本编辑区]─────────┐ │  ┌─[关系图视图]──────────────┐    │
-│  │ # 输入格式示例：     │ │  │                            │    │
-│  │ <a,b>                │ │  │   ●───▶●                   │    │
-│  │ <c,d>                │ │  │   │                       │    │
-│  │ <a,c>                │ │  │   ▼                       │    │
-│  │                      │ │  │   ●      ●  (含环红色高亮)│    │
-│  ├──────────────────────┤ │  │                            │    │
-│  │[载入][保存][同步][增删]│ │  └────────────────────────────┘    │
+│ [载入文件][保存数据]       │  ┌─[关系图视图]──────────────┐    │
+│ [文本->表格][表格->文本]   │  │                            │    │
+│ [+增行][-删行][清空]       │  │       ●(CS 150)            │    │
+│  ┌─[文本编辑区]─────────┐ │  │         ↑                  │    │
+│  │ # 请按 <a,b> 格式... │ │  │ ●(MA 140)→●(MA 141)       │    │
+│  │ <MA 140,MA 141>      │ │  │ (静态环形布局，环路径标红) │    │
+│  │ <MA 141,CS 150>      │ │  └────────────────────────────┘    │
 │  ├─[表格编辑视图]───────┤ │  ┌─[拓扑排序结果列表]────────┐    │
-│  │ 起点 │ 终点          │ │  │ 1. a -> c -> b             │    │
-│  │  a   │  b            │ │  │ 2. a -> d -> b             │    │
-│  │  c   │  d            │ │  │ ...                        │    │
-│  └──────────────────────┘ │  │ 共 N 条  | 1/3 页 [首页][上][下]│
-│  [InputPanel 输入面板]    │  │ [复制][清空]               │    │
-│                          │  │ [ResultPanel 结果面板]     │    │
+│  │ 起点     │ 终点      │ │  │ 1. MA 140 -> MA 141 -> ... │    │
+│  │ MA 140   │ MA 141    │ │  │ ...（每页 20 条）          │    │
+│  └──────────────────────┘ │  │ 共 N 条 | 1/K 页[首页][上][下] │
+│  [InputPanel]            │  │ [复制当前][清空]           │    │
+│                          │  │ [ResultPanel]              │    │
 │                          │  └────────────────────────────┘    │
 ├─────────────────────────────────────────────────────────────┤
-│ 节点:5 边:6 无环 序列数:12 耗时:23ms   就绪    [状态栏]    │
+│ 节点:3 | 边数:2 | 无环 | 序列数:1 | 耗时:6ms    枚举完成...  │
 └─────────────────────────────────────────────────────────────┘
+```
+
+文本区启动时的默认内容（均为 `#` 注释与示例边）：
+
+```
+# 请按 <a,b> 格式输入数据，每行一条关系，# 开头为注释
+# a 为前驱，b 为后继，如 <a,b> 表示有向边 a -> b
+# 示例：
+<MA 140,MA 141>
+<MA 141,CS 150>
 ```
 
 ### 2.2 布局组件说明
 
 | 区域 | 组件 | 职责 |
 |---|---|---|
-| 菜单栏 | JMenuBar | 文件 / 编辑 / 计算 / 帮助 四个菜单 |
-| 工具栏 | JToolBar | 打开 / 保存 / 计算 / 导出图片 / 导出结果 五个图标按钮 |
-| 左栏 | InputPanel | 上文本区、下表格视图，含载入/保存/同步/增删行按钮 |
-| 右栏上 | GraphPanel（C 包） | 关系图绘制，含分层/环形布局、缩放、拖拽、环高亮 |
-| 右栏下 | ResultPanel | 拓扑排序结果分页列表，含总数显示、单击高亮、复制 |
-| 状态栏 | StatusBar | 节点数 / 边数 / 含环 / 序列总数 / 耗时 / 提示 |
+| 菜单栏 | JMenuBar | 文件 / 编辑 / 计算 / 帮助 四个菜单，均注册 Alt+字母 助记符 |
+| 工具栏 | JToolBar | 打开 / 保存 / 计算 / 取消计算 / 导出图片 / 导出结果 六个文字按钮 |
+| 左栏 | InputPanel | 上文本区、下表格视图（垂直分割），载入/保存/双向同步/增删行/清空七个按钮 |
+| 右栏上 | GraphPanel（view 包，C 后续演进） | 静态环形布局，绘制有向箭头与自环；环路径红色加粗、选中序列节点蓝色 |
+| 右栏下 | ResultPanel | 结果分页列表（每页 20 条），总数/页码、单击高亮、双击复制 |
+| 状态栏 | StatusBar | 节点数 / 边数 / 含环 / 序列数 / 耗时 / 右侧动态提示 |
 
 ### 2.3 菜单结构
 
 ```
-文件(F)
-  ├─ 打开... (Ctrl+O)        载入 .txt/.csv 数据
-  ├─ 保存数据 (Ctrl+S)        保存当前输入为 .txt
+文件(F)  Alt+F
+  ├─ 打开...          JFileChooser 选择 .txt/.csv，FileManager.readFile 读取并同步表格
+  ├─ 保存数据         JFileChooser 选择路径，FileManager.saveFile 写出（自动补 .txt）
   ├─ ─────────
-  ├─ 导出图片                画布渲染为 PNG
-  ├─ 导出结果...              TXT 或 CSV 格式选择对话框
+  ├─ 导出图片         GraphPanel.exportPNG 导出当前关系图
+  ├─ 导出结果...      按扩展名分流 FileManager.exportTxt / exportCsv
   ├─ ─────────
-  └─ 退出 (Ctrl+X)
+  └─ 退出
 
-编辑(E)
-  ├─ 文本 → 表格              解析文本区填入表格
-  ├─ 表格 → 文本              表格数据写回文本区
+编辑(E)  Alt+E
+  ├─ 文本 → 表格      DataParser.parse 后把普通边与自环填入表格
+  ├─ 表格 → 文本      表格行写回 <a,b> 文本
   ├─ ─────────
-  └─ 清空输入                清空文本区与表格
+  └─ 清空输入
 
-计算(C)
-  ├─ 计算拓扑排序 (Ctrl+C)    执行完整计算流程
+计算(C)  Alt+C
+  ├─ 计算拓扑排序      解析 → 建图 → 判环 → 后台枚举
+  ├─ 取消计算          仅枚举进行中可用，请求终止并展示已生成的部分结果
   ├─ ─────────
-  └─ 清空结果                清空结果面板与画布高亮
+  └─ 清空结果
 
-帮助(H)
+帮助(H)  Alt+H
   ├─ 使用说明
   ├─ ─────────
   └─ 关于
 ```
+
+说明：当前只注册了 Alt+字母 菜单助记符（setMnemonic），未注册 Ctrl+ 加速键；"计算"与"取消计算"按枚举运行状态互斥启用。
 
 ### 2.4 状态栏布局
 
@@ -117,7 +127,7 @@
 ```
 
 - 左侧 5 个统计标签使用 `|` 分隔；
-- 右侧提示文本根据操作动态变化（如"已选中序列：a→c→b"）；
+- 右侧提示文本随操作变化（就绪 / 计算中 / 枚举完成共 N 条 / 达到上限 / 超时 / 已取消 / 检测到环）；
 - 含环时"含环"标签变红，无环时"无环"标签变绿。
 
 ---
@@ -127,449 +137,366 @@
 ### 3.1 计算按钮点击后的完整流程
 
 ```
-用户              MainController           InputValidator        DataParser           Graph(T-A1)        TopologicalSolver    AllTopoSorts       CycleDetector       GraphPanel          ResultPanel         StatusBar
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │ 点击"计算"          │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  ├────────────────────▶│                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ getInputText()        │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ (从 InputPanel)       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ validate(text) ───────────────────────────▶│                    │                    │                   │                   │                   │                   │                  │
-  │                     │ ◀── List<ParseError> ──────────────────────│                    │                    │                   │                   │                   │                   │                  │
-  │                     │ (有错则弹窗但仍继续解析)│                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ parse(text) ───────────────────────────────────────────────────▶│                   │                   │                   │                   │                   │                  │
-  │                     │ ◀── ParseResult(edges, errors, hasSelfLoop) ─────────────────────│                   │                   │                   │                   │                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ for each edge: addEdge(from,to) ───────────────────────────────────▶│                  │                   │                   │                   │                   │                  │
-  │                     │ (建图，自动去重与自环标记)│                    │                    │                   │                   │                   │                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ detect(graph) ───────────────────────────────────────────────────────────────────────────────────────────────▶│                  │                   │                   │                  │
-  │                     │ ◀── CycleResult(hasCycle, cyclePath) ──────────────────────────────────────────────────────────────────────────│                  │                   │                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ kahnSort(graph) ───────────────────────────────────────────────▶│                   │                   │                   │                   │                   │                  │
-  │                     │ ◀── List<String> ───────────────────────────────────────────────│                   │                   │                   │                   │                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ [无环] new AllTopoSorts(graph, maxResults).compute() ───────────────────────────────▶│                   │                   │                   │                   │                  │
-  │                     │ ◀── List<List<String>> ───────────────────────────────────────────────────────────────│                   │                   │                   │                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ setGraph(graph) ───────────────────────────────────────────────────────────────────────────────────────────────▶│                   │                   │                  │
-  │                     │ setCycleHighlight(cycle) / setSelectedOrder(seq[0]) ───────────────────────────────────────────────────────────▶│                   │                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ setResults(allResults) ───────────────────────────────────────────────────────────────────────────────────────────────────────────────▶│                   │                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │                     │ updateStats(nodeCount, edgeCount, hasCycle, total, cost) ─────────────────────────────────────────────────────────────────────────────────────────────────────▶│                  │
-  │                     │                       │                    │                    │                    │                   │                   │                   │                   │                  │
-  │ ◀── 弹窗（含环警告/自环提示/完成）─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                  │
+EDT(事件分发线程)                    后台线程(SwingWorker)
+      │
+      │ 点击"计算拓扑排序"（菜单或工具栏）
+      ▼
+MainController.compute()
+      │
+      ├─ inputPanel.getInputText()，为空白则警告并中止
+      │
+      ├─ DataParser.parse(text)                  （D 的正式解析器，静态方法）
+      │     └─ ParseResult{ edges, selfLoops, errors, duplicateCount }
+      │
+      ├─ !isSuccess() ? 组装"第x行：原因"消息 → ExceptionHandler 弹窗 → 中止
+      ├─ !hasData()    ? 警告"没有有效的关系数据" → 中止
+      │
+      ├─ new Graph()，遍历 getEdges() 与 getSelfLoops() 调 graph.addEdge(s,t)
+      ├─ graphPanel.setGraph(graph)              （先刷新画布结构）
+      │
+      ├─ CycleDetector.findCycle(graph)
+      │     ├─ 非空（自环 [X,X] / 2 环 [A,B,A] / 更长闭合路径）
+      │     │     ├─ graphPanel.setHighlightedCycle(cycle)（环边红色加粗）
+      │     │     ├─ resultPanel 清空
+      │     │     ├─ statusBar.updateStats(..., hasCycle=true, ...)
+      │     │     └─ 警告弹窗显示环路径，流程结束
+      │     └─ 空列表（无环）→ 进入枚举
+      │
+      ├─ setBusy(true)：禁用"计算"，启用"取消计算"
+      │
+      ├─ EnumerationWorker.execute() ──────────────▶ AllTopoSorts.enumerate(
+      │                                                   graph,
+      │                                                   maxResults = 10000,
+      │                                                   timeoutMillis = 30000,
+      │                                                   cancelled = () -> 取消标记 || isCancelled())
+      │   用户可随时点"取消计算"：cancelRequested = true，
+      │   枚举在下一个回溯检查点退出，保留已生成序列
+      │                                                     │
+      │ ◀──────────── done()：EnumerationResult ────────────┘
+      ├─ setBusy(false)
+      ├─ resultPanel.setResults(sequences)
+      ├─ graphPanel.setSelectedOrder(sequences.get(0))
+      ├─ statusBar.updateStats(节点, 边, false, 条数, 耗时ms)
+      └─ statusBar.setTip(按 StopReason 生成的中文提示)
 ```
 
 ### 3.2 关键事件序列（文字版）
 
-1. **用户点击"计算"按钮**（菜单项或工具栏按钮均可触发）；
-2. **MainController.compute()** 启动；
-3. **取输入**：`inputPanel.getInputText()` 获取文本区内容；若为空，弹窗提示并中止；
-4. **校验**：`InputValidator.validate(text)` 返回 `List<ParseError>`；若有错误，弹窗显示前 20 条，但不中止流程（解析器会跳过错误行）；
-5. **解析**：`DataParser.parse(text)` 返回 `ParseResult`（含边列表、错误清单、自环标记）；若边数为 0，弹窗"未解析出有效关系"并中止；
-6. **建图**：遍历 `parseResult.getEdges()`，调用 `graph.addEdge(from, to)`；图自动去重并标记自环；
-7. **环检测**：`CycleDetector.detect(graph)` 返回 `CycleResult`；
-8. **Kahn 排序**：`TopologicalSolver.kahnSort(graph)` 返回一条拓扑序列；
-9. **全拓扑枚举**：
-   - 若无环：`new AllTopoSorts(graph, maxResults).compute()` 返回全部序列（上限 1000）；
-   - 若有环：仅返回 Kahn 已排出的部分序列；
-10. **刷新画布**：`graphPanel.setGraph(graph)`；有环则 `setCycleHighlight(cycleResult)`；无环则 `setSelectedOrder(allResults.get(0))` 高亮首条；
-11. **刷新结果面板**：`resultPanel.setResults(allResults)`；
-12. **更新状态栏**：`statusBar.updateStats(...)` 显示节点/边/含环/总数/耗时；
-13. **弹窗提示**：含环或自环时给出警告；正常完成在状态栏提示"计算完成，共 N 条"。
+1. 用户点击"计算拓扑排序"（菜单项或工具栏按钮触发同一入口）；
+2. MainController.compute() 取输入文本，空白（仅空白字符）直接警告并中止；
+3. 调用静态方法 `DataParser.parse(text)`，不再先做 InputValidator 预校验（原因见 7.3）；
+4. `ParseResult.isSuccess()` 为 false（errors 非空）时，把每条 ParseError 格式化为"第x行：原因"（lineNumber 为 0 的全局性错误只显示原因），弹窗最多展示 20 条，**中止流程**（V1.0 设计中的"有错仍继续解析"已废弃，避免脏数据建图）；
+5. `hasData()` 为 false（边与自环均为空，如全文只有注释）时警告并中止；
+6. 用边列表建图：先遍历 `getEdges()`，再遍历 `getSelfLoops()`，逐条 `graph.addEdge(source,target)`；解析器已对普通边去重，重复数可经 `getDuplicateCount()` 获取；
+7. `graphPanel.setGraph(graph)` 先把图交给画布布局；
+8. `CycleDetector.findCycle(graph)` 返回闭合路径列表；空列表表示无环；自环返回 `[X,X]`，两节点互指返回 `[A,B,A]`；
+9. 有环：画布 `setHighlightedCycle` 标红、结果列表清空、状态栏按含环更新，弹窗显示环路径后结束；
+10. 无环：setBusy 切换按钮状态，启动内部类 EnumerationWorker（继承 SwingWorker）；
+11. 后台执行 `AllTopoSorts.enumerate(graph, 10000, 30000, 取消谓词)`，结果上限 10000 条、超时 30 秒；
+12. done() 回到 EDT：填充 ResultPanel、画布高亮首条序列、状态栏更新统计；
+13. 状态栏提示按 StopReason 区分：COMPLETED"枚举完成，共 N 条"、LIMIT_REACHED"达到结果上限"、TIMEOUT"超时停止"、CANCELLED"已取消，已显示部分序列"。
 
 ### 3.3 用户选中序列时的事件流
 
 ```
-ResultPanel: 用户单击列表项
+ResultPanel：用户单击列表项（单选模式）
    │
    ▼
 SelectionListener.onSequenceSelected(seq)
    │
    ▼
-MainController (匿名内部类实现)
+MainController 在 bindActions() 中注册的 lambda
    │
-   ├── graphPanel.setSelectedOrder(seq)   // 画布按序高亮节点
-   └── statusBar.setTip("已选中序列：" + join("→", seq))
+   └── graphPanel.setSelectedOrder(seq)   // 序列中的节点在画布上蓝色高亮
 ```
+
+双击列表项或点击"复制当前"把 `a -> b -> c` 形式的序列写入系统剪贴板。
 
 ### 3.4 文件操作事件流
 
-| 操作 | 触发 | 调用链 |
+文件对话框（JFileChooser）由 UI 层负责弹出，D 的 FileManager 只接收 File 参数并抛 IOException：
+
+| 操作 | 触发位置 | 实际调用链 |
 |---|---|---|
-| 载入文件 | 菜单"打开"/工具栏"📂" | FileManager.openFile → InputPanel.setInputText → syncTextToTable |
-| 保存数据 | 菜单"保存"/工具栏"💾" | FileManager.saveFile(inputPanel.getInputText) |
-| 导出图片 | 菜单"导出图片"/工具栏"🖼" | 弹出保存对话框 → GraphPanel.exportPNG(file) |
-| 导出结果 | 菜单"导出结果"/工具栏"📊" | 弹出格式选择 → FileManager.exportResults(results, format) |
+| 载入文件 | InputPanel"载入文件"按钮 / 菜单"打开" / 工具栏 | JFileChooser（初始目录取 FileManager.getLastOpenedDirectory）→ FileManager.readFile(File) → textArea.setText → syncTextToTable |
+| 保存数据 | InputPanel"保存数据"按钮 / 菜单 / 工具栏 | JFileChooser（无扩展名自动补 .txt）→ FileManager.saveFile(File, text) |
+| 导出图片 | 菜单 / 工具栏"导出图片" | 无图时先警告；JFileChooser → GraphPanel.exportPNG(File) |
+| 导出结果 | 菜单 / 工具栏"导出结果" | 无结果时先警告；JFileChooser，.csv 走 FileManager.exportCsv（UTF-8 BOM），其余走 exportTxt（自动补 .txt） |
 
 ---
 
 ## 四、GUI 类设计
 
-### 4.1 类图（文字版）
+### 4.1 类结构总览
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       <<boundary>>                          │
-│                        MainFrame                            │
-│                    (extends JFrame)                        │
-├─────────────────────────────────────────────────────────────┤
-│ - inputPanel : InputPanel                                  │
-│ - graphPanel : GraphPanel                                  │
-│ - resultPanel : ResultPanel                                │
-│ - statusBar : StatusBar                                    │
-│ - mi* : JMenuItem (12 个菜单项)                            │
-│ - tool* : JButton (5 个工具栏按钮)                         │
-├─────────────────────────────────────────────────────────────┤
-│ + MainFrame()                                              │
-│ + getInputPanel() : InputPanel                             │
-│ + getGraphPanel() : GraphPanel                             │
-│ + getResultPanel() : ResultPanel                           │
-│ + getStatusBar() : StatusBar                              │
-│ + getMi*() / getTool*() : JMenuItem / JButton             │
-│ + main(String[]) : void [静态入口]                          │
-└─────────────────────────────────────────────────────────────┘
-            │ 持有
-            ▼
-┌────────────────────────┐  ┌─────────────────────────────┐
-│  <<boundary>>          │  │  <<boundary>>               │
-│   InputPanel           │  │   ResultPanel               │
-│   (extends JPanel)     │  │   (extends JPanel)          │
-├────────────────────────┤  ├─────────────────────────────┤
-│ - textArea : JTextArea │  │ - listModel                │
-│ - tableModel           │  │ - resultList : JList        │
-│ - table : JTable       │  │ - allResults : List<List>  │
-│ - btnLoadFile/Save/...  │  │ - currentPage / totalPages │
-├────────────────────────┤  │ - selectionListener        │
-│ + getInputText()       │  ├─────────────────────────────┤
-│ + setInputText(text)   │  │ + setResults(results)      │
-│ + installDefaultSync() │  │ + setSelectionListener(l)  │
-│ + syncTextToTable()    │  │ + getResults() : List       │
-│ + syncTableToText()    │  └─────────────────────────────┘
-└────────────────────────┘
-            │                                │
-            │                                │ 事件回调
-            ▼                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      <<control>>                           │
-│                    MainController                           │
-├─────────────────────────────────────────────────────────────┤
-│ - frame : MainFrame                                        │
-│ - inputPanel / graphPanel / resultPanel / statusBar         │
-│ - maxResults : int = 1000                                  │
-├─────────────────────────────────────────────────────────────┤
-│ + MainController(frame)                                    │
-│ + compute() : void                                         │
-│ - loadFromFile() / saveData() / exportPng() / exportResults()│
-│ - bindActions() : void                                     │
-│ - wireSelectionListener() : void                          │
-│ - safeAction(name, task) : void                           │
-└─────────────────────────────────────────────────────────────┘
-            │ 调用
-            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  <<entity>> A 包                  <<entity>> C 包桩          │
-│  Graph                            GraphPanel                 │
-│  TopologicalSolver               (extends JPanel)           │
-│  AllTopoSorts                    ├────────────────────────── │
-│  CycleDetector                   │ + setGraph(g)            │
-│  CycleResult                     │ + setCycleHighlight(c)   │
-│                                  │ + setSelectedOrder(seq)  │
-│  <<entity>> D 包                  │ + exportPNG(file)        │
-│  DataParser                      │ + clear()                │
-│  ParseResult                     └──────────────────────────│
-│  ParseError                                                 │
-│  FileManager                     <<utility>>                │
-│  InputValidator                  UIStyle / ExceptionHandler │
-└─────────────────────────────────────────────────────────────┘
+ui 包（组员 B）                       view 包（C 演进，B 维护当前静态版）
+┌──────────────────────┐             ┌──────────────────────┐
+│ MainFrame (JFrame)   │  持有        │ GraphPanel (JPanel)  │
+│  T-B1 主窗口/入口     │────────────▶│  setGraph            │
+├──────────────────────┤             │  setHighlightedCycle │
+│ InputPanel (JPanel)  │             │  setSelectedOrder    │
+│  T-B2 文本+表格输入   │             │  exportPNG/clear     │
+├──────────────────────┤             └──────────────────────┘
+│ ResultPanel (JPanel) │
+│  T-B3 分页结果列表    │
+├──────────────────────┤
+│ StatusBar (JPanel)   │      util 包（组员 B）
+│  T-B5 状态栏          │      ┌──────────────────────┐
+└──────────┬───────────┘      │ UIStyle              │
+           │ 被持有            │  T-B8 配色/字体/间距  │
+           ▼                  ├──────────────────────┤
+┌──────────────────────┐      │ ExceptionHandler     │
+│ MainController       │      │  T-B5 中文弹窗        │
+│  T-B4 流程编排        │      └──────────────────────┘
+│  内部类 Enumeration-  │
+│  Worker(SwingWorker) │      io 包（组员 D 正式实现，直接复用）
+└──────────┬───────────┘      ┌──────────────────────┐
+           │ 调用             │ DataParser（静态）   │
+           ▼                  │ FileManager（静态）  │
+model 包（A）  algorithm 包（A）│ InputValidator       │
+Graph         TopologicalSolver └──────────────────────┘
+              AllTopoSorts / EnumerationResult / StopReason
+              CycleDetector / TopoResult
 ```
 
 ### 4.2 类职责说明
 
 | 类 | 包 | 职责 | 任务编号 |
 |---|---|---|---|
-| MainFrame | topo.view | 主窗口，组装菜单/工具栏/内容区/状态栏 | T-B1 |
-| InputPanel | topo.view | 文本+表格双视图输入面板，载入/保存/同步按钮 | T-B2 |
-| ResultPanel | topo.view | 拓扑结果分页列表，单击高亮，复制 | T-B3 |
-| MainController | topo.controller | 计算流程编排，菜单/按钮事件绑定，异常包装 | T-B4 |
-| StatusBar | topo.view | 状态栏实时显示统计与提示 | T-B5 |
-| ExceptionHandler | topo.util | 统一异常处理工具类 | T-B5 |
-| UIStyle | topo.util | 配色/字体/间距规范与样式方法 | T-B8 |
-| GraphPanel | topo.view | 关系图绘制组件（C 包桩，含 exportPNG） | stub-CD |
-| Main | topo | 程序入口，装配 MainFrame + MainController | — |
+| MainFrame | ui | 主窗口，组装菜单/工具栏/分割面板/状态栏，main 入口内自行装配 MainController | T-B1 |
+| InputPanel | ui | 文本区 + JTable 双视图，载入/保存/双向同步/增删行/清空，默认中文格式提示 | T-B2 |
+| ResultPanel | ui | 结果分页列表（每页 20 条），总数与页码、翻页、单击回调、双击/按钮复制 | T-B3 |
+| MainController | ui | 菜单与工具栏绑定、计算流程编排、SwingWorker 后台枚举与取消、导出 | T-B4 |
+| StatusBar | ui | 节点/边/含环/序列数/耗时统计与右侧动态提示 | T-B5 |
+| ExceptionHandler | util | 统一中文弹窗（错误/警告/信息/确认/问题清单/异常兜底） | T-B5 |
+| UIStyle | util | 配色、字体（含中文兼容的逻辑等宽字体）、间距与组件样式 | T-B8 |
+| GraphPanel | view | 静态环形画布：有向箭头/自环、环标红、选中序列高亮、PNG 导出 | C（B 维护当前版本） |
 
-### 4.3 关键方法签名
+### 4.3 关键方法签名（均与源码一致）
 
 ```java
-// MainController.compute() —— 核心计算流程
-public void compute();
+// ui.MainFrame
+public MainFrame();
+public InputPanel getInputPanel();
+public GraphPanel getGraphPanel();
+public ResultPanel getResultPanel();
+public StatusBar getStatusBar();
+public JMenuItem getMiCompute();   public JMenuItem getMiCancel();
+public JButton getToolCompute();   public JButton getToolCancel();
+// 其余 getMiOpen/getMiSave/... 与 getToolOpen/... 为同名 getter
+public static void main(String[] args);   // 入口：new MainController(frame) 后 setVisible
 
-// MainController 绑定方法
-private void bindActions();          // 绑定菜单+工具栏
-private void wireSelectionListener(); // 结果面板选中回调
-
-// InputPanel 输入接口
+// ui.InputPanel
 public String getInputText();
 public void setInputText(String text);
-public void installDefaultSyncActions(Component parent);
-public void syncTextToTable();
+public void requestLoadFile();              // 供菜单/工具栏复用
+public void requestSaveFile();
+public void clearAll();
+public void installDefaultSyncActions(Component dialogParent);
+public void syncTextToTable();              // DataParser.parse 后填充普通边+自环
 public void syncTableToText();
 
-// ResultPanel 结果接口
+// ui.ResultPanel
 public void setResults(List<List<String>> results);
 public List<List<String>> getResults();
-public void setSelectionListener(ResultPanel.SelectionListener listener);
+public void setSelectionListener(SelectionListener listener);
+interface SelectionListener { void onSequenceSelected(List<String> sequence); }
 
-// GraphPanel 画布接口（C 包桩）
-public void setGraph(Graph graph);
-public void setCycleHighlight(CycleResult cycle);
-public void setSelectedOrder(List<String> order);
-public void exportPNG(File file) throws IOException;
-public void clear();
-
-// StatusBar 状态栏接口
-public void updateStats(int nodes, int edges, boolean hasCycle,
+// ui.StatusBar
+public void updateStats(int nodeCount, int edgeCount, boolean hasCycle,
                         int totalSorts, long costMs);
 public void setTip(String text);
 public void reset();
 
-// ExceptionHandler 异常工具
-public static void showError(Component parent, String msg);
-public static void showError(Component parent, String msg, int lineNo);
-public static void showParseErrors(Component parent, List<ParseError> errors);
-public static void showWarning(Component parent, String msg);
-public static void showInfo(Component parent, String msg);
+// ui.MainController
+public MainController(MainFrame frame);
+// 常量：MAX_RESULTS = 10000，TIMEOUT_MILLIS = 30000
+private void compute();            // 解析→建图→判环→（环：结束 / 无环：后台枚举）
+private void cancelCompute();      // cancelRequested=true 并 worker.cancel(true)
+private void clearResults();
+private void exportResult();       // txt/csv
+private void exportPNG();
+// 内部类：private class EnumerationWorker extends SwingWorker<EnumerationResult, Void>
+
+// view.GraphPanel
+public void setGraph(Graph graph);
+public void setHighlightedCycle(List<String> closedCycle); // 闭合序列 [A,...,A]
+public void setSelectedOrder(List<String> order);
+public void clear();
+public void exportPNG(File file) throws IOException;
+
+// util.ExceptionHandler
+public static void showError(Component parent, String message);
+public static void showIssues(Component parent, List<String> messages, String title);
+public static void showParseErrors(Component parent, List<String> messages);
+public static void showWarning(Component parent, String message);
+public static void showInfo(Component parent, String message);
+public static boolean showConfirm(Component parent, String message);
 public static void handle(Component parent, Throwable t);
-public static void safeRun(Component parent, Runnable task);
 ```
 
 ---
 
-## 五、与算法模块的调用关系
+## 五、与算法、解析模块的调用关系
 
-### 5.1 调用关系图
+### 5.1 调用契约清单（实际使用的签名）
 
-```
-┌──────────────┐
-│ MainController│
-└──────┬───────┘
-       │
-       │ 按计算流程依次调用
-       │
-       ├──────────────────────────────────────────────────────────┐
-       │                                                          │
-       ▼                                                          ▼
-┌─────────────────┐                              ┌────────────────────────┐
-│  topo.parser    │                              │  topo.algorithm        │
-│  (D 包桩)       │                              │  (A 包桩)              │
-├─────────────────┤                              ├────────────────────────┤
-│ InputValidator  │  validate(text)             │ TopologicalSolver      │
-│   .validate()   │──List<ParseError>──▶         │   .kahnSort(graph)     │
-│                 │                              │   .isCompleteSort()    │
-│ DataParser      │  parse(text)                 │                        │
-│   .parse()      │──ParseResult(edges,errs)──▶  │ AllTopoSorts           │
-│                 │                              │   (graph, maxResults)  │
-│ FileManager     │  openFile/saveFile/          │   .compute()           │
-│                 │  exportResults()             │   .getTotalCount()     │
-└─────────────────┘                              │   .isTruncated()       │
-       │                                         │                        │
-       │ 解析结果 edges                           │ CycleDetector          │
-       │ 喂给                                    │   .detect(graph)        │
-       ▼                                         │   .hasCycle(graph)     │
-┌─────────────────┐                              │                        │
-│  topo.model      │                              │ CycleResult            │
-│  (A 包桩)        │                              │   .hasCycle()          │
-├─────────────────┤                              │   .getCyclePath()      │
-│ Graph           │  addEdge(from,to)            │   .formatPath()        │
-│   .addEdge()    │◀─────                         └────────────────────────┘
-│   .vertexCount()│                                       │
-│   .edgeCount()  │                                       │ 返回结果
-│   .getVertices()│                                       │
-│   .getSelfLoops()│                                      ▼
-└─────────────────┘                              ┌────────────────────────┐
-       │                                          │  topo.view (B 包)      │
-       │ graph 对象                               │  GraphPanel.setGraph() │
-       └──────────────────────────────────────────▶│  ResultPanel.setResults()│
-                                                  │  StatusBar.updateStats()│
-                                                  └────────────────────────┘
-```
+| 调用方 | 被调方 | 方法 | 返回 | 何时调用 |
+|---|---|---|---|---|
+| MainController / InputPanel | io.DataParser | static parse(String) | ParseResult | 计算前解析、文本→表格同步 |
+| MainController | ParseResult | isSuccess() / hasData() / getEdges() / getSelfLoops() / getErrors() | boolean / List<Edge> / List<ParseError> | 校验与建图 |
+| MainController | model.Graph | addEdge(String,String) | boolean | 边列表逐条建图（含自环） |
+| MainController | algorithm.CycleDetector | static findCycle(Graph) | List<String>（空=无环，闭合=有环） | 建图后判环 |
+| EnumerationWorker | algorithm.AllTopoSorts | static enumerate(Graph,int,long,BooleanSupplier) | EnumerationResult | 无环时后台枚举 |
+| MainController | EnumerationResult | getSequences() / getGeneratedCount() / isComplete() / getStopReason() | — | 回填 UI 与提示 |
+| MainController / InputPanel | io.FileManager | readFile / saveFile / exportTxt / exportCsv（均 static，File 参数，抛 IOException） | — | 文件读写与结果导出 |
+| MainController | view.GraphPanel | setGraph / setHighlightedCycle / setSelectedOrder / exportPNG | void | 画布刷新与导出 |
+| MainController | ResultPanel / StatusBar | setResults / updateStats / setTip | void | 结果与状态刷新 |
 
-### 5.2 调用契约清单
+补充类型：
 
-| 调用方 | 被调方 | 方法 | 入参 | 返回 | 何时调用 |
-|---|---|---|---|---|---|
-| MainController | InputValidator | validate(text) | String | List<ParseError> | 计算前校验 |
-| MainController | DataParser | parse(text) | String | ParseResult | 解析阶段 |
-| MainController | Graph | addEdge(from,to) | String,String | void | 建图阶段 |
-| MainController | CycleDetector | detect(graph) | Graph | CycleResult | 环检测阶段 |
-| MainController | TopologicalSolver | kahnSort(graph) | Graph | List<String> | Kahn 排序 |
-| MainController | AllTopoSorts | compute() | — | List<List<String>> | 全拓扑枚举 |
-| MainController | GraphPanel | setGraph/setCycleHighlight/setSelectedOrder | Graph/CycleResult/List | void | 刷新画布 |
-| MainController | ResultPanel | setResults | List<List<String>> | void | 刷新结果 |
-| MainController | StatusBar | updateStats | int,int,boolean,int,long | void | 更新状态 |
-| MainController | FileManager | openFile/saveFile/exportResults | Component,String,String | String/boolean | 文件操作 |
-| MainController | GraphPanel | exportPNG | File | void | 导出图片 |
-| MainController | ExceptionHandler | showError/showWarning/handle | Component,String/Throwable | void | 异常处理 |
-| ResultPanel | SelectionListener | onSequenceSelected | List<String> | void | 用户选中序列 |
-| InputPanel | FileManager | openFile/saveFile | Component | String/boolean | 载入/保存按钮 |
-| InputPanel | DataParser | parse | String | ParseResult | 文本→表格同步 |
+- `DataParser.Edge`：getSource()、getTarget()、isSelfLoop()；getEdges() 返回已去重、不含自环的边，自环在 getSelfLoops() 中；
+- `DataParser.ParseError`：getLineNumber()（0 表示全局性错误，如"没有有效数据行"）、getMessage()；
+- `algorithm.TopoResult`：getOrder()、hasCycle()；`StopReason`：COMPLETED / LIMIT_REACHED / CANCELLED / TIMEOUT / CYCLE；
+- 空图枚举按契约返回 `[[]]`（生成数 1、完整），含环图返回 CYCLE、序列为空。
+
+### 5.2 Graph 公开能力（A 图设计，算法/视图层只允许使用这些方法）
+
+`boolean addVertex(String)`、`boolean addEdge(String,String)`、`boolean removeEdge(String,String)`、`List<String> getVertexNames()`、`List<String> getSuccessors(String)`、`int getInDegree(String)`、`int getOutDegree(String)`、`int getVertexCount()`、`int getEdgeCount()`。Graph 不暴露 Vertex/Edge 内部结构，也不维护可供外部遍历的独立 Edge 列表；视图层通过 getVertexNames + getSuccessors 派生全部边。
 
 ### 5.3 数据流图
 
 ```
-[用户输入 <a,b> 文本]
-        │
-        ▼
-   ┌─InputPanel─┐
-   │  textArea  │
-   └─────┬──────┘
-         │ String
-         ▼
-   ┌─InputValidator─┐
-   │ .validate()    │
-   └─────┬──────────┘
-         │ List<ParseError> (用于弹窗提示)
-         ▼
-   ┌─DataParser─┐
-   │ .parse()    │
-   └─────┬──────┘
-         │ ParseResult { edges, errors, hasSelfLoop }
-         ▼
-   ┌─Graph─┐
-   │ addEdge│
-   └─────┬──┘
-         │ Graph 对象
-         ├──────────────┬───────────────┬───────────────┐
-         ▼              ▼               ▼               ▼
-   CycleDetector   TopologicalSolver  AllTopoSorts   GraphPanel.setGraph
-   .detect()        .kahnSort()       .compute()
-         │              │               │
-         ▼              ▼               ▼
-   CycleResult    List<String>    List<List<String>>
-         │              │               │
-         └──────────────┴───────────────┘
-                        │
-                        ▼
-                  MainController
-                        │
-            ┌───────────┼───────────┐
-            ▼           ▼           ▼
-       GraphPanel  ResultPanel  StatusBar
-       (画布刷新)  (结果列表)    (统计更新)
-                        │
-                        ▼
-                  [用户查看结果]
-                  [可导出 PNG / TXT / CSV]
+[文本区 <a,b> 输入 / data 目录数据文件]
+                 │ String
+                 ▼
+          io.DataParser.parse（D 的标准解析器）
+                 │ ParseResult
+                 ▼
+   errors 非空？──是──▶ 中文错误弹窗（带行号），中止
+   edges+selfLoops 为空？──是──▶ 警告，中止
+                 │ 否
+                 ▼
+        new Graph() + addEdge 逐条建图
+                 │ Graph
+                 ▼
+       CycleDetector.findCycle
+                 │
+      ┌──────────┴───────────┐
+      ▼ 非空                  ▼ 空
+ 环路径红色高亮+警告      EnumerationWorker（后台线程）
+                          AllTopoSorts.enumerate
+                          （上限 10000 / 超时 30s / 可取消）
+                                │ EnumerationResult
+                                ▼
+        ResultPanel.setResults + GraphPanel 首条序列高亮
+        StatusBar.updateStats + 按 StopReason 提示
+                                │
+                                ▼
+                  可导出 PNG / TXT / CSV
 ```
 
 ---
 
 ## 六、异常处理设计
 
-### 6.1 异常处理策略
+### 6.1 异常场景与处理方式（当前实现）
 
-| 异常来源 | 处理方式 | 用户反馈 |
+| 场景 | 判定位置 | 处理方式与用户反馈 |
 |---|---|---|
-| 输入为空 | compute() 早期返回 | 弹窗"输入数据为空" |
-| 格式错误 | InputValidator 标记行号 | 弹窗列出错误行 + 行号 + 原因 |
-| 解析失败 | DataParser 跳过错误行 | 错误进入 ParseResult.errors |
-| 自环节点 | Graph 标记 selfLoops | 弹窗警告 + 画布正常显示 |
-| 含环图 | CycleDetector 返回环路径 | 弹窗警告 + 画布红色高亮环 |
-| 文件 IO 异常 | FileManager 抛 RuntimeException | ExceptionHandler.handle 弹窗 |
-| 画布导出失败 | exportPNG 抛 IOException | ExceptionHandler.handle 弹窗 |
-| 未知异常 | safeAction 包装 | 弹窗显示 message，状态栏提示失败 |
+| 输入为空白 | compute() 开头 | 警告"请输入关系数据后再计算"，中止 |
+| 语法/格式错误（如缺少尖括号、括号不匹配） | ParseResult.getErrors() | 错误弹窗，逐行"第 x 行：原因"，最多 20 条，中止建图 |
+| 只有注释/空行，无有效边 | ParseResult.hasData()=false | 警告"没有有效的关系数据"，中止 |
+| 重复边 | 解析器自动去重 | 不报错；重复计数保留在 getDuplicateCount() |
+| 自环 `<x,x>` | 进入 getSelfLoops()，照常建图 | findCycle 返回 [x,x]，画布标红 + 环警告 |
+| 两节点互指/更长环 | findCycle | 闭合路径标红，结果列表清空，状态栏"含环" |
+| 枚举达到上限 / 超时 / 被取消 | StopReason | 展示已生成序列，状态栏分别提示上限/超时/已取消 |
+| 载入、保存 IO 失败 | InputPanel 内 try-catch | JOptionPane 错误弹窗（含异常消息） |
+| 导出结果 / PNG 失败 | MainController try-catch | ExceptionHandler.handle 统一弹窗 |
+| 导出时无结果/无图 | 导出方法开头 | 警告"请先计算"，不弹文件对话框 |
 
-### 6.2 异常处理时序
+### 6.2 错误消息格式
+
+解析错误在 MainController 中统一格式化后交给 ExceptionHandler：
 
 ```
-[用户操作]
-     │
-     ▼
-MainController.safeAction(name, task)
-     │
-     ▼
-try { task.run(); }
-catch (Exception e) {
-    ExceptionHandler.handle(frame, e);  // 弹窗显示
-    statusBar.setTip(name + " 失败：" + e.getMessage());
-}
+第3行：无法识别的数据格式
+第7行：括号不匹配
+（lineNumber == 0 时省略"第x行："前缀，直接显示全局原因）
 ```
 
 ---
 
 ## 七、设计评审与遗留问题
 
-### 7.1 已实现项
+### 7.1 已实现项与验证证据
 
 | 任务 | 状态 | 验证 |
 |---|---|---|
-| T-B1 MainFrame | ✅ 完成 | 编译通过 + GUI 启动显示主窗口 |
-| T-B2 InputPanel | ✅ 完成 | 编译通过 + 默认行为已绑定 |
-| T-B3 ResultPanel | ✅ 完成 | 编译通过 + 选中回调已接入 |
-| T-B4 MainController | ✅ 完成 | 编译通过 + 计算流程串联 |
-| T-B5 StatusBar + ExceptionHandler | ✅ 完成 | 编译通过 |
-| T-B8 UIStyle | ✅ 完成 | 编译通过 + 全局面板应用 |
+| T-B1 MainFrame | 完成 | 全量 `-encoding UTF-8` 编译通过；GUI 启动截图，菜单/工具栏/分割布局正常 |
+| T-B2 InputPanel | 完成 | 默认中文提示正常显示；载入/保存/双向同步/增删行可用；解析器接入 |
+| T-B3 ResultPanel | 完成 | 每页 20 条分页、单击高亮回调、双击复制均已验证 |
+| T-B4 MainController | 完成 | 示例数据计算得 `MA 140 -> MA 141 -> CS 150`；后台枚举与取消按钮互斥启用 |
+| T-B5 StatusBar + ExceptionHandler | 完成 | 含环红色/无环绿色；错误弹窗带行号 |
+| T-B6/T-B7 文档 | 完成 | 需求分析报告、本报告随代码同步更新至 V1.1 |
+| T-B8 UIStyle | 完成 | 全局样式统一；修复中文方块问题（Consolas → Font.MONOSPACED） |
 
-### 7.2 依赖桩待替换项
+流水线验证（dev-b）：data/figure1.txt（15 节点/16 边）、data/curriculum.txt（43 节点/85 边）解析建图成功，Kahn 序列长度等于节点数，枚举达上限正确停止；互指环返回 `a -> b -> a`、自环返回 `x -> x`、纯注释输入与非法行被正确拒绝。
 
-| 桩类 | 待替换为 | 接口契约 |
-|---|---|---|
-| topo.model.Graph | A 包完整实现 | addEdge / vertexCount / edgeCount / getVertices / getSelfLoops 不变 |
-| topo.algorithm.TopologicalSolver | A 包完整实现 | kahnSort(Graph) 返回 List<String> 不变 |
-| topo.algorithm.AllTopoSorts | A 包完整实现 | 构造 + compute() + getTotalCount() 不变 |
-| topo.algorithm.CycleDetector | A 包完整实现 | detect(Graph) 返回 CycleResult 不变 |
-| topo.parser.DataParser | D 包完整实现 | parse(String) 返回 ParseResult 不变 |
-| topo.parser.FileManager | D 包完整实现 | openFile/saveFile/exportResults 不变 |
-| topo.parser.InputValidator | D 包完整实现 | validate(String) 返回 List<ParseError> 不变 |
-| topo.view.GraphPanel | C 包完整实现 | setGraph/setCycleHighlight/setSelectedOrder/exportPNG 不变 |
+### 7.2 中文显示问题的排查结论
 
-### 7.3 后续优化建议
+- 源码为 UTF-8 无 BOM，编译带 `-encoding UTF-8`，class 文件中字符串经 Unicode 转义探针核对完全正确（早期 javap 看到的乱码只是 PowerShell 控制台 GBK 代码页的显示问题）；
+- 真正的显示故障是字体：文本区使用的物理字体 Consolas 不含中文字形，JTextArea/JList 中中文被画成方块（JLabel 使用微软雅黑因此正常）；
+- 修复：UIStyle.FONT_MONO 改为逻辑字体 `new Font(Font.MONOSPACED, Font.PLAIN, 13)`，ASCII 仍等宽，中文自动回退，GUI 截图确认正常。
 
-1. **SwingWorker 异步化**：千节点全拓扑枚举可能耗时，建议将 compute() 移入 SwingWorker 后台线程，避免阻塞 EDT；
-2. **撤销/重做**：InputPanel 可加入 UndoManager 支持文本编辑撤销；
-3. **国际化**：当前为中文硬编码，后续可抽 ResourceBundle；
-4. **主题切换**：UIStyle 可扩展为多主题（浅色/深色）；
-5. **快捷键**：菜单项已设 mnemonic，可补充 Ctrl+ 加速键。
+### 7.3 已知差异与遗留项
+
+1. **InputValidator 规则不一致**：D 的 `InputValidator.validate` 正则不允许节点名含内部空格，会把契约与解析器都接受的 `MA 140` 判为非法。因此计算流程以 DataParser 为唯一权威，未接入预校验；需例会上请 D 统一校验规则后再决定是否启用；
+2. **A 新版契约未合入 main**：当前算法层按冻结契约 V1.0 编译运行；A 适配边列表的新契约合入后，预计只需调整 MainController 的建图适配段；
+3. **画布为占位实现**：当前环形静态布局由 B 维护，分层布局、缩放拖拽、悬停高亮、点击反馈按会议决议等待 C 迭代；GraphPanel 的三个 set/export 方法签名已按对接需要固定；
+4. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
+5. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。
 
 ---
 
-## 八、附录：包结构
+## 八、附录：包结构与构建运行
+
+### 8.1 实际目录结构（dev-b）
 
 ```
-topo-sort/
-├── src/main/java/topo/
-│   ├── Main.java                       程序入口
-│   ├── model/                          A 包（桩）
-│   │   ├── Vertex.java
-│   │   ├── Edge.java
-│   │   └── Graph.java
-│   ├── algorithm/                      A 包（桩）
-│   │   ├── TopologicalSolver.java
-│   │   ├── AllTopoSorts.java
-│   │   ├── CycleDetector.java
-│   │   └── CycleResult.java
-│   ├── parser/                         D 包（桩）
-│   │   ├── DataParser.java
-│   │   ├── ParseResult.java
-│   │   ├── ParseError.java
-│   │   ├── FileManager.java
-│   │   └── InputValidator.java
-│   ├── view/                           B 包 + C 桩
-│   │   ├── MainFrame.java              T-B1
-│   │   ├── InputPanel.java             T-B2
-│   │   ├── ResultPanel.java            T-B3
-│   │   ├── GraphPanel.java             C 桩
-│   │   └── StatusBar.java              T-B5
-│   ├── controller/                     B 包
-│   │   └── MainController.java         T-B4
-│   └── util/                           B 包
-│       ├── UIStyle.java                T-B8
-│       └── ExceptionHandler.java       T-B5
-├── docs/
-│   ├── 需求分析报告.md                  T-B6
-│   └── 详细设计报告-GUI.md              T-B7
+e:\tp
+├── src\                          源码根（编译输出 src\out，已被 .gitignore 忽略）
+│   ├── model\                    A：Graph / Vertex / Edge
+│   ├── algorithm\                A：TopologicalSolver / TopoResult
+│   │                             │   AllTopoSorts / EnumerationResult / StopReason
+│   │                             └── CycleDetector
+│   ├── io\                       D：DataParser / FileManager（直接复用正式实现）
+│   ├── util\                     D：InputValidator；B：UIStyle / ExceptionHandler
+│   ├── ui\                       B：MainFrame(T-B1) / InputPanel(T-B2)
+│   │                             │   ResultPanel(T-B3) / MainController(T-B4)
+│   │                             └── StatusBar(T-B5)
+│   └── view\                     GraphPanel（静态画布，C 演进）
+├── data\
+│   ├── figure1.txt               15 节点 / 16 边示例
+│   └── curriculum.txt            43 节点 / 85 边培养方案数据
+├── docs\                         需求分析、接口契约、代码规范、本设计报告
+├── screenshots\                  验收截图目录
+├── test\                         测试目录
 └── README.md
 ```
+
+### 8.2 编译与运行（PowerShell，必须显式指定 UTF-8）
+
+```powershell
+Set-Location "e:\tp\src"
+$files = (Get-ChildItem -Recurse -Filter "*.java" |
+          Where-Object { $_.Name -ne "package-info.java" }).FullName
+$argList = @('-encoding','UTF-8','-d','out') + $files
+& javac @argList
+
+Set-Location out
+java ui.MainFrame
+```
+
+注意：在 Windows PowerShell 中通过数组 splatting（`@argList`）传参，确保 `-encoding UTF-8` 真正传给 javac；直接写 `javac -encoding UTF-8 ...` 在部分调用方式下参数可能被吞掉。
