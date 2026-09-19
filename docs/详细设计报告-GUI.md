@@ -367,8 +367,8 @@ public static void handle(Component parent, Throwable t);
 
 补充类型：
 
-- `io.ParseResult`：`Graph getGraph()`、`List<ParseIssue> getErrors()`、`List<ParseIssue> getWarnings()`（另有 `hasErrors/hasWarnings/getErrorCount/getWarningCount` 便捷方法）；契约 §6 规定的顶层类型，B 不访问解析器内部的边/自环列表；
-- `io.ParseIssue`：`int getLineNumber()`（1 起行号；0 表示整份输入级别的全局问题）、`String getMessage()`、`String getContent()`（出错行原文）；
+- `io.ParseResult`：`Graph getGraph()`、`List<ParseIssue> getErrors()`、`List<ParseIssue> getWarnings()`；契约 §6 规定的顶层类型，B 不访问解析器内部的边/自环列表；
+- `io.ParseIssue`：`int getLineNumber()`（1 起行号；0 表示整份输入级别的全局问题）、`String getMessage()`；
 - `algorithm.TopoResult`：getOrder()、hasCycle()；`StopReason`：COMPLETED / LIMIT_REACHED / CANCELLED / TIMEOUT / CYCLE；
 - 空图枚举按契约返回 `[[]]`（生成数 1、完整），含环图返回 CYCLE、序列为空。
 
@@ -448,7 +448,7 @@ flowchart TD
 
 流水线验证（dev-b，V1.2）：全量 `javac -encoding UTF-8` 编译零错误；23 项命令行链路冒烟全部通过——data/figure1.txt（15 节点/16 边，节点名含内部空格）解析后节点数/边数精确、Kahn 序列覆盖全部节点；重复边产生 warning 且不计入度数；自环返回 `[X,X]`；非法行返回带行号 error；全角 `＜＞，` 兼容；仅注释输入返回空 Graph 且无 error；小图全枚举恰得 2 条 COMPLETED 序列；孤立节点保留并进入每条序列；含环图枚举入口以 CYCLE 拒绝。
 
-> 解析层现状：io 包已由 D 交付正式实现（`DataParser.parse` 实例方法 + 顶层 `ParseResult` / `ParseIssue`），B 已完整对接。D 的 `ParseIssue` 公开方法为 `getLineNumber() / getMessage() / getContent()`，B 侧已适配。导出走 D 的新重载 `exportTxt/exportCsv(file, lines, isComplete, stopReasonText)`，B 在 MainController 中把 A 的 StopReason 枚举转成中文传入。
+> 解析层现状：io 包已由 D 交付正式实现（`DataParser.parse` 实例方法 + 顶层 `ParseResult` / `ParseIssue`），B 已完整对接。D 的 `ParseIssue` 公开方法为 `getLineNumber() / getMessage()`，B 侧已适配。导出走 D 的新重载 `exportTxt/exportCsv(file, lines, isComplete, stopReasonText)`，B 在 MainController 中把 A 的 StopReason 枚举转成中文传入。
 
 ### 7.2 中文显示问题的排查结论
 
@@ -459,7 +459,7 @@ flowchart TD
 
 ### 7.3 已知差异与遗留项
 
-1. **解析器已接入 D 正式版**（V1.3）：D 交付的 `DataParser` / `ParseResult` / `ParseIssue` 已替换原 A 契约桩，`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，B 侧已适配并通过 D 的自测（DataParser 32/32、FileManager 14/14、InputValidator 36/36）；
+1. **解析器已接入 D 正式版**（V1.3）：D 交付的 `DataParser` / `ParseResult` / `ParseIssue` 已替换原 A 契约桩，`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，B 侧已适配并通过 D 的自测（DataParser 35/35、FileManager 14/14、InputValidator 39/39）；
 2. **画布为占位实现**：当前环形静态布局由 B 维护，分层布局、缩放拖拽、悬停高亮、点击反馈按会议决议等待 C 迭代；GraphPanel 的三个 set/export 方法签名已按对接需要固定；
 3. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
 4. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。

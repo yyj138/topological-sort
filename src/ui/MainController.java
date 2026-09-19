@@ -72,7 +72,7 @@ public class MainController {
         frame.getMiHelp().addActionListener(e -> ExceptionHandler.showInfo(frame,
                 "1. 在文本区按 <a,b> 格式输入关系，每行一条\n"
                 + "2. # 开头为注释，可载入/保存数据文件\n"
-                + "3. 点击计算：有环将标红环路径，无环则列出全部拓扑序列\n"
+                + "3. 点击计算：有环将标红环路径，无环则列出多种拓扑序列（默认最多1000条）\n"
                 + "4. 单击结果可在图中高亮，双击可复制"));
         frame.getMiAbout().addActionListener(e -> ExceptionHandler.showInfo(frame,
                 "拓扑排序应用软件\nCST4823A 高级算法原理实践\n开发分支 dev-b"));
