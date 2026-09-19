@@ -177,6 +177,26 @@ public class TestInputValidator {
                     assertEqual("第2个错误行号", result.getErrors().get(1).getLineNumber(), 2);
                 });
 
+        test("名称含 Unicode 行分隔符 \\u2028",
+                "<A\u2028B,C>",
+                result -> {
+                    assertFalse("不应通过校验", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(),
+                            "非法字符");
+                });
+
+        test("名称含 Unicode 行分隔符 \\u0085",
+                "<A\u0085B,C>",
+                result -> {
+                    assertFalse("不应通过校验", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(),
+                            "非法字符");
+                });
+
         test("括号内为空",
                 "<>",
                 result -> {
@@ -318,14 +338,12 @@ public class TestInputValidator {
             ValidationResult result = InputValidator.validate(input);
             testCase.check(result);
             System.out.println("  [PASS] " + name);
-            // 打印错误详情
             if (!result.getErrors().isEmpty()) {
                 for (ParseIssue issue : result.getErrors()) {
                     System.out.println("         → 行号 " + issue.getLineNumber()
                             + "：" + issue.getMessage());
                 }
             }
-            // 打印警告详情
             if (!result.getWarnings().isEmpty()) {
                 for (ParseIssue issue : result.getWarnings()) {
                     System.out.println("         → 行号 " + issue.getLineNumber()

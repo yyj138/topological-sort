@@ -172,6 +172,24 @@ public class TestDataParser {
                             "终点名称包含非法字符");
                 });
 
+        test("名称含 Unicode 行分隔符 \\u2028",
+                "<A\u2028B,C>",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误消息", result.getErrors().get(0).getMessage(),
+                            "起点名称包含非法字符");
+                });
+
+        test("名称含 Unicode 行分隔符 \\u0085",
+                "<A\u0085B,C>",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误消息", result.getErrors().get(0).getMessage(),
+                            "起点名称包含非法字符");
+                });
+
         test("完全乱码行",
                 "qwertyuiop",
                 result -> {
