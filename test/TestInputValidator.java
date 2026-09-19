@@ -197,6 +197,27 @@ public class TestInputValidator {
                             "非法字符");
                 });
 
+        test("特殊空白 U+2003 起点的重复边",
+                "<\u2003A,B>\n<A,B>",
+                result -> {
+                    assertTrue("格式合法应通过", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                    assertEqual("警告数", result.getWarnings().size(), 1);
+                    assertEqual("警告行号", result.getWarnings().get(0).getLineNumber(), 2);
+                    assertEqual("警告消息", result.getWarnings().get(0).getMessage(),
+                            "重复的关系 <A,B>，已忽略");
+                });
+
+        test("特殊空白 U+2003 起点为空名称",
+                "<\u2003,B>",
+                result -> {
+                    assertFalse("不应通过校验", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：起点名称为空");
+                });
+
         test("括号内为空",
                 "<>",
                 result -> {

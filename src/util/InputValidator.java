@@ -20,6 +20,7 @@ import java.util.Set;
  * <li>跳过空行和以 {@code #} 开头的注释行</li>
  * <li>容忍行首尾空格，兼容全角尖括号和全角逗号</li>
  * <li>名称允许内部空格（如 {@code MA 141}），区分大小写</li>
+ * <li>名称首尾空白使用 {@code String.strip()} 清理，与 A 的 Vertex.normalizeName 保持一致</li>
  * <li>名称不允许包含 {@code <}、{@code >}、{@code ,}、换行符或 Unicode 行分隔符</li>
  * <li>重复关系作为警告提示，自环保留为合法关系</li>
  * </ul>
@@ -88,20 +89,16 @@ public class InputValidator {
             int lineNumber = i + 1;
             String line = lines[i].strip();
 
-            // 跳过空行
             if (line.isEmpty()) {
                 continue;
             }
 
-            // 跳过 # 注释行
             if (line.startsWith("#")) {
                 continue;
             }
 
-            // 全角尖括号和全角逗号转半角
             line = normalizeFullWidth(line);
 
-            // 校验单行的 <from,to> 格式
             String[] pair = extractPair(line, lineNumber, errors);
             if (pair == null) {
                 continue;
@@ -110,7 +107,7 @@ public class InputValidator {
             String from = pair[0];
             String to = pair[1];
 
-            // 检查重复关系
+            // 使用已 strip 的名称判断重复，和 DataParser 的 Graph.addEdge 对齐
             String edgeKey = from + "\t" + to;
             if (seenEdges.contains(edgeKey)) {
                 warnings.add(new io.ParseIssue(lineNumber,
@@ -136,6 +133,16 @@ public class InputValidator {
      * 从一行中提取并校验 {@code <from,to>} 的两个名称。
      * <p>
      * 错误消息与 DataParser.extractPair 完全一致。
+     * </p>
+     * <p>
+     * 名称处理顺序（与 A 的 Vertex.normalizeName 保持一致）：
+     * <ol>
+     * <li>先对原始名称检查非法字符（{@code <}、{@code >}、{@code ,}、
+     * 换行符、Unicode 行分隔符）；</li>
+     * <li>再对原始名称使用 {@code String.strip()} 去除首尾空白
+     * （含 U+2003 等 Unicode 空白）；</li>
+     * <li>最后判断清理后的名称是否为空。</li>
+     * </ol>
      * </p>
      *
      * @param line       已去除首尾空白并完成全角转换的行
@@ -164,7 +171,7 @@ public class InputValidator {
             return null;
         }
 
-        String content = line.substring(left + 1, right).trim();
+        String content = line.substring(left + 1, right).strip();
 
         if (content.isEmpty()) {
             errors.add(new io.ParseIssue(lineNumber, "格式错误：括号内为空"));
@@ -177,8 +184,22 @@ public class InputValidator {
             return null;
         }
 
-        String from = content.substring(0, comma).trim();
-        String to = content.substring(comma + 1).trim();
+        String fromRaw = content.substring(0, comma);
+        String toRaw = content.substring(comma + 1);
+
+        // 先检查非法字符（含 Unicode 行分隔符），不能先 strip
+        if (containsFormatDelimiter(fromRaw)) {
+            errors.add(new io.ParseIssue(lineNumber, "起点名称包含非法字符：" + fromRaw));
+            return null;
+        }
+        if (containsFormatDelimiter(toRaw)) {
+            errors.add(new io.ParseIssue(lineNumber, "终点名称包含非法字符：" + toRaw));
+            return null;
+        }
+
+        // 再 strip，去除首尾空白（含 U+2003 等 Unicode 空白）
+        String from = fromRaw.strip();
+        String to = toRaw.strip();
 
         if (from.isEmpty()) {
             errors.add(new io.ParseIssue(lineNumber, "格式错误：起点名称为空"));
@@ -186,14 +207,6 @@ public class InputValidator {
         }
         if (to.isEmpty()) {
             errors.add(new io.ParseIssue(lineNumber, "格式错误：终点名称为空"));
-            return null;
-        }
-        if (containsFormatDelimiter(from)) {
-            errors.add(new io.ParseIssue(lineNumber, "起点名称包含非法字符：" + from));
-            return null;
-        }
-        if (containsFormatDelimiter(to)) {
-            errors.add(new io.ParseIssue(lineNumber, "终点名称包含非法字符：" + to));
             return null;
         }
 
