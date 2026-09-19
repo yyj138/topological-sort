@@ -39,7 +39,7 @@ tp/                            # 仓库根（E:\tp，唯一工程根，无嵌套
 │   ├── model/                 # Vertex / Edge / Graph
 │   ├── algorithm/             # Kahn / 枚举 / 环检测
 │   ├── io/                    # DataParser / FileManager（组员 D 正式实现）
-│   ├── view/                  # GraphPanel（静态环形画布，C 后续演进分层布局）
+│   ├── view/                  # GraphPanel（环形画布+环高亮+PNG导出，C 交付）
 │   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
 │   └── util/                  # UIStyle / ExceptionHandler / InputValidator
 ├── test/                      # 算法 / 解析测试（根目录，T-E1/E2）

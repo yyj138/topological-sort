@@ -1,12 +1,12 @@
 # 拓扑排序应用软件 详细设计报告（GUI 部分）
 
-本报告由组员 B 编写，对应 GUI 主框架与交互控制部分（任务 T-B1 ~ T-B8）的详细设计，属于项目 CST4823A 高级算法原理实践，指导教师廖海泳 / 陈银冬。报告描述界面布局、事件处理流程、GUI 类结构与调用关系。文档版本 V1.3，更新日期 2026 年 9 月 19 日：V1.3 起 io 包已接入 D 正式版（`DataParser` / `ParseResult` / `ParseIssue`），`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，枚举上限按接口契约统一为 1000 条 / 30 秒 / 可取消。V1.2 历史：B 侧对接方式按跨模块接口契约 V1.0 重写——`MainController` 与 `InputPanel` 不再通过 `DataParser.Edge` 边列表手动建图，改为直接调用 `ParseResult.getGraph()` 取得 `model.Graph`；问题类型由 `DataParser.ParseError` 升级为顶层 `io.ParseIssue`。V1.1 中 §7.3 记录的"InputValidator 规则不一致"与"A 新版契约未合入"两项遗留由此关闭。
+本报告由组员 B 编写，对应 GUI 主框架与交互控制部分（任务 T-B1 ~ T-B8）的详细设计，属于项目 CST4823A 高级算法原理实践，指导教师廖海泳 / 陈银冬。报告描述界面布局、事件处理流程、GUI 类结构与调用关系。文档版本 V1.4，更新日期 2026 年 9 月 19 日：V1.4 起接入 C 交付的 GraphPanel（环形布局+环高亮+拓扑序高亮+PNG导出），替换 B 占位实现。V1.3 起 io 包已接入 D 正式版（`DataParser` / `ParseResult` / `ParseIssue`），`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，枚举上限按接口契约统一为 1000 条 / 30 秒 / 可取消。V1.2 历史：B 侧对接方式按跨模块接口契约 V1.0 重写——`MainController` 与 `InputPanel` 不再通过 `DataParser.Edge` 边列表手动建图，改为直接调用 `ParseResult.getGraph()` 取得 `model.Graph`；问题类型由 `DataParser.ParseError` 升级为顶层 `io.ParseIssue`。V1.1 中 §7.3 记录的"InputValidator 规则不一致"与"A 新版契约未合入"两项遗留由此关闭。
 
 ## 一、设计概述
 
 ### 1.1 设计目标
 
-本详细设计报告针对 GUI 主框架与交互控制部分（组员 B 任务 T-B1 ~ T-B8），描述界面布局、事件处理流程、GUI 类结构与调用关系，作为编码实现与现场验收的直接依据。V1.2 中描述的全部类、方法签名、流程与常量均与 dev-b 分支源码一致，并与跨模块接口契约 V1.0 完全对齐。
+本详细设计报告针对 GUI 主框架与交互控制部分（组员 B 任务 T-B1 ~ T-B8），描述界面布局、事件处理流程、GUI 类结构与调用关系，作为编码实现与现场验收的直接依据。V1.4 中描述的全部类、方法签名、流程与常量均与 dev-b 分支源码一致，并与跨模块接口契约 V1.0 完全对齐。
 
 ### 1.2 设计原则
 
@@ -24,7 +24,7 @@
 - 源码编码：UTF-8 无 BOM，编译必须带 `-encoding UTF-8`；
 - 中文字体：界面字体使用"微软雅黑"，文本区/结果列表使用逻辑字体 Font.MONOSPACED（物理字体 Consolas 不含中文字形会把中文渲染成方块，逻辑字体可自动回退中文字体）；
 - 接口契约：算法层与解析层均严格遵循契约 V1.0——B 直接调用 `ParseResult.getGraph()` 取得 `model.Graph`，不再在 B 侧建图；问题类型 `io.ParseIssue`、解析器 `io.DataParser` 均按契约交付；
-- 画布：本期为静态画布（环形布局 + 环标红），分层布局与悬停/点击等动态交互按会议决议延后由 C 迭代。
+- 画布：C 已交付 GraphPanel（环形布局 + 环路径红色高亮 + 选中序列绿色高亮 + PNG 导出）。
 
 ### 1.4 9.17 会议决议对 GUI 的影响
 
@@ -85,7 +85,7 @@ flowchart TB
 | 菜单栏 | JMenuBar | 文件 / 编辑 / 计算 / 帮助 四个菜单，均注册 Alt+字母 助记符 |
 | 工具栏 | JToolBar | 打开 / 保存 / 计算 / 取消计算 / 导出图片 / 导出结果 六个文字按钮 |
 | 左栏 | InputPanel | 上文本区、下表格视图（垂直分割），载入/保存/双向同步/增删行/清空七个按钮 |
-| 右栏上 | GraphPanel（view 包，C 后续演进） | 静态环形布局，绘制有向箭头与自环；环路径红色加粗、选中序列节点蓝色 |
+| 右栏上 | GraphPanel（view 包，C 交付） | 环形布局，绘制有向箭头与自环；环路径红色加粗、选中序列节点绿色 |
 | 右栏下 | ResultPanel | 结果分页列表（每页 20 条），总数/页码、单击高亮、双击复制 |
 | 状态栏 | StatusBar | 节点数 / 边数 / 含环 / 序列数 / 耗时 / 右侧动态提示 |
 
@@ -282,7 +282,7 @@ flowchart TB
 | StatusBar | ui | 节点/边/含环/序列数/耗时统计与右侧动态提示 | T-B5 |
 | ExceptionHandler | util | 统一中文弹窗（错误/警告/信息/确认/问题清单/异常兜底） | T-B5 |
 | UIStyle | util | 配色、字体（含中文兼容的逻辑等宽字体）、间距与组件样式 | T-B8 |
-| GraphPanel | view | 静态环形画布：有向箭头/自环、环标红、选中序列高亮、PNG 导出 | C（B 维护当前版本） |
+| GraphPanel | view | 环形画布：有向箭头/自环、环标红、选中序列高亮、PNG 导出 | C 交付 |
 
 ### 4.3 关键方法签名（均与源码一致）
 
@@ -443,7 +443,7 @@ flowchart TD
 | T-B3 ResultPanel | 完成（V1.0 起） | 每页 20 条分页、单击高亮回调、双击复制均已验证 |
 | T-B4 MainController | 完成（V1.2 调整） | `compute()` 直接取 `parsed.getGraph()`，不再手动建图；`getErrors()` 中止流程、`getWarnings()` 仅提示；后台枚举与取消按钮互斥启用 |
 | T-B5 StatusBar + ExceptionHandler | 完成（V1.0 起） | 含环红色/无环绿色；错误弹窗带行号；V1.2 增加对 warning 流的 Info 弹窗 |
-| T-B6/T-B7 文档 | 完成（V1.2） | 需求分析报告、本报告随代码同步更新至 V1.2 |
+| T-B6/T-B7 文档 | 完成（V1.4） | 需求分析报告、本报告随代码同步更新至 V1.4 |
 | T-B8 UIStyle | 完成（V1.1 起） | 全局样式统一；修复中文方块问题（Consolas → Font.MONOSPACED），V1.2 保持未回退 |
 
 流水线验证（dev-b，V1.2）：全量 `javac -encoding UTF-8` 编译零错误；23 项命令行链路冒烟全部通过——data/figure1.txt（15 节点/16 边，节点名含内部空格）解析后节点数/边数精确、Kahn 序列覆盖全部节点；重复边产生 warning 且不计入度数；自环返回 `[X,X]`；非法行返回带行号 error；全角 `＜＞，` 兼容；仅注释输入返回空 Graph 且无 error；小图全枚举恰得 2 条 COMPLETED 序列；孤立节点保留并进入每条序列；含环图枚举入口以 CYCLE 拒绝。
@@ -460,7 +460,7 @@ flowchart TD
 ### 7.3 已知差异与遗留项
 
 1. **解析器已接入 D 正式版**（V1.3）：D 交付的 `DataParser` / `ParseResult` / `ParseIssue` 已替换原 A 契约桩，`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，B 侧已适配并通过 D 的自测（DataParser 35/35、FileManager 14/14、InputValidator 39/39）；
-2. **画布为占位实现**：当前环形静态布局由 B 维护，分层布局、缩放拖拽、悬停高亮、点击反馈按会议决议等待 C 迭代；GraphPanel 的三个 set/export 方法签名已按对接需要固定；
+2. **画布已接入 C 正式版**（V1.4）：C 交付的 GraphPanel 提供 setGraph/setHighlightedCycle/setSelectedOrder/exportPNG 四个方法，与 MainController 对接完成；
 3. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
 4. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。
 
