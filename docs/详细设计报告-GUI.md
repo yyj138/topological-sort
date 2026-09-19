@@ -375,22 +375,21 @@ public static void handle(Component parent, Throwable t);
 下图使用 Mermaid `flowchart` 绘制，可在 GitHub / GitLab / Gitea 直接渲染。整份输入文本经 D 的 DataParser 解析为 ParseResult，B 直接取其 `getGraph()` 交付 Graph，不再手动建图：
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':15,'rankSpacing':25,'padding':4}}}%%
 flowchart TD
-    A["文本区 &lt;a,b&gt; 输入 / data 目录数据文件"]
-    A -->|String| B["io.DataParser.parse<br/>D 的标准解析器（实例方法）"]
-    B -->|io.ParseResult| C{"getErrors()<br/>非空？"}
-    C -->|是| D["中文错误弹窗（带行号）<br/>中止流程"]
-    C -->|否| E{"getWarnings()<br/>非空？"}
-    E -->|是| F["Info 弹窗提示<br/>不中止"]
+    A["文本区 / 数据文件"] -->|String| B["DataParser.parse（D）"]
+    B -->|ParseResult| C{"getErrors() 非空？"}
+    C -->|是| D["错误弹窗（带行号）<br/>中止"]
+    C -->|否| E{"getWarnings() 非空？"}
+    E -->|是| F["Info 弹窗提示<br/>不中止"] --> G{"顶点=0 且 边=0？"}
     E -->|否| G
-    F --> G{"graph.vertexCount==0<br/>and edgeCount==0？"}
-    G -->|是| H["警告：没有有效数据<br/>中止流程"]
-    G -->|否| I["parsed.getGraph()<br/>B 不调 Graph.addEdge"]
-    I -->|model.Graph| J["new CycleDetector().findCycle"]
-    J -->|含环（含自环 / 互指 / 长环）| K["环路径红色高亮 + 警告弹窗<br/>resultPanel 清空 / 状态栏含环"]
-    J -->|空列表（无环）| L["EnumerationWorker（后台线程）<br/>new AllTopoSorts().enumerate<br/>上限 10000 / 超时 30s / 可取消"]
-    L -->|io.EnumerationResult| M["ResultPanel.setResults + GraphPanel 首条序列高亮<br/>StatusBar.updateStats + 按 StopReason 提示"]
-    M --> N["可导出 PNG / TXT / CSV"]
+    G -->|是| H["警告：无有效数据<br/>中止"]
+    G -->|否| I["取 parsed.getGraph()"]
+    I -->|Graph| J["new CycleDetector().findCycle()"]
+    J -->|含环| K["环路径红色高亮<br/>警告弹窗"]
+    J -->|无环| L["EnumerationWorker 后台枚举<br/>AllTopoSorts.enumerate(上限10000/30s/可取消)"]
+    L -->|EnumerationResult| M["结果列表+图高亮<br/>状态栏更新"]
+    M --> N["导出 PNG / TXT / CSV"]
 ```
 
 ---
