@@ -92,24 +92,33 @@ flowchart TB
 ### 2.3 菜单结构
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':15,'rankSpacing':25,'padding':4}}}%%
+%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':12,'rankSpacing':20,'padding':4}}}%%
 flowchart LR
-    F["文件(F) Alt+F"] --> F1["打开..."]
-    F --> F2["保存数据"]
-    F --> F3["导出图片"]
-    F --> F4["导出结果..."]
-    F --> F5["退出"]
-
-    E["编辑(E) Alt+E"] --> E1["文本→表格"]
-    E --> E2["表格→文本"]
-    E --> E3["清空输入"]
-
-    C["计算(C) Alt+C"] --> C1["计算拓扑排序"]
-    C --> C2["取消计算"]
-    C --> C3["清空结果"]
-
-    H["帮助(H) Alt+H"] --> H1["使用说明"]
-    H --> H2["关于"]
+    subgraph Fg["文件(F) Alt+F"]
+        direction TB
+        F1["打开..."]
+        F2["保存数据"]
+        F3["导出图片"]
+        F4["导出结果..."]
+        F5["退出"]
+    end
+    subgraph Eg["编辑(E) Alt+E"]
+        direction TB
+        E1["文本→表格"]
+        E2["表格→文本"]
+        E3["清空输入"]
+    end
+    subgraph Cg["计算(C) Alt+C"]
+        direction TB
+        C1["计算拓扑排序"]
+        C2["取消计算"]
+        C3["清空结果"]
+    end
+    subgraph Hg["帮助(H) Alt+H"]
+        direction TB
+        H1["使用说明"]
+        H2["关于"]
+    end
 ```
 
 说明：当前只注册了 Alt+字母 菜单助记符（setMnemonic），未注册 Ctrl+ 加速键；"计算"与"取消计算"按枚举运行状态互斥启用。
