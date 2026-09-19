@@ -226,32 +226,29 @@ flowchart LR
 ### 4.1 类结构总览
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':15,'rankSpacing':25,'padding':4}}}%%
+%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':20,'rankSpacing':40,'padding':5}}}%%
 flowchart TB
     subgraph ui["ui（B）"]
-        MF["MainFrame T-B1"]
-        IP["InputPanel T-B2"]
-        RP["ResultPanel T-B3"]
-        SB["StatusBar T-B5"]
         MC["MainController T-B4<br/>+ EnumerationWorker"]
+        MF["MainFrame T-B1"]
     end
     subgraph view["view（C 演进）"]
-        GP["GraphPanel<br/>setGraph/exportPNG"]
+        GP["GraphPanel"]
     end
     subgraph util["util（B/D）"]
-        US["UIStyle T-B8"]
-        EH["ExceptionHandler T-B5"]
+        EH["ExceptionHandler"]
+        US["UIStyle"]
     end
     subgraph io["io（D 正式版）"]
         DP["DataParser"]
         FM["FileManager"]
     end
-    subgraph model["model（A）"]
-        G["Graph / Vertex / Edge"]
-    end
     subgraph algorithm["algorithm（A）"]
         CD["CycleDetector"]
         ATS["AllTopoSorts"]
+    end
+    subgraph model["model（A）"]
+        G["Graph / Vertex / Edge"]
     end
     MC -->|调用| DP
     MC -->|调用| FM
