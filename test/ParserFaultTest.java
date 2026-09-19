@@ -15,8 +15,15 @@ import java.io.IOException;
  * 本测试只做内存字符串文本解析测试；
  * ⚠️文件IO(T‑E2‑15)、环检测逻辑(T‑E2‑07环判定)、大图性能、拓扑枚举不属于本类；
  * 文件IO异常放到 FileManagerTest.java；环检测、算法性能属于T‑E1。
+ *
+ * T‑E2‑09【全部孤立节点】说明：
+ * 当前<from,to>文本语法无法只生成孤立顶点而不生成边；
+ * 孤立节点只能通过Graph.addVertex() API手动构造，不属于文本解析测试，
+ * 该场景的验证放在T‑E1算法测试中，本类不提供对应文本用例。
+ *
  * 更新记录：
  * 2026‑09‑19：补充【首尾Unicode行分隔符】用例；一致性校验增加U+2003相关输入；优化用例命名，修复日志标题Unicode控制字符输出问题。
+ * 2026‑09‑19‑rev：修复一致性校验打印未转义Unicode控制字符；移除开发调试输出文本，不改变业务逻辑。
  */
 public class ParserFaultTest {
     private static int passed = 0;
@@ -37,7 +44,6 @@ public class ParserFaultTest {
             printlnConsoleAndFile("========================================");
             printlnConsoleAndFile("      T‑E2 解析器容错测试 E组员交付");
             printlnConsoleAndFile("依据：接口契约V1.0、docs/异常与边界场景清单.md V1.8");
-            printlnConsoleAndFile("【已修复】D已修正content提前strip导致首尾Unicode行分隔符漏检问题");
             printlnConsoleAndFile("========================================\n");
             // ========== T‑E2‑01 ~ T‑E2‑23 原有解析用例 ==========
             runParseCase("T‑E2‑01 缺少左括号", "a,b>", r -> {
@@ -358,10 +364,11 @@ public class ParserFaultTest {
         var ivWarnKeyList = vr.getWarnings().stream()
                 .map(w -> w.getLineNumber() + ":" + w.getMessage()).toList();
         if (dpErrKeyList.equals(ivErrKeyList) && dpWarnKeyList.equals(ivWarnKeyList)) {
-            printlnConsoleAndFile(String.format("[PASS]一致性校验输入=\"%s\"", shortStr(input)));
+            // =========【修改点】对输入字符串执行escapeUnicode，防止控制字符撕裂日志行 =========
+            printlnConsoleAndFile(String.format("[PASS]一致性校验输入=\"%s\"", escapeUnicode(shortStr(input))));
             consPassed++;
         } else {
-            printlnConsoleAndFile(String.format("[FAIL]一致性校验输入=\"%s\"", shortStr(input)));
+            printlnConsoleAndFile(String.format("[FAIL]一致性校验输入=\"%s\"", escapeUnicode(shortStr(input))));
             printlnConsoleAndFile("      DataParser ERR(key):" + dpErrKeyList);
             printlnConsoleAndFile("      InputValidator ERR(key):" + ivErrKeyList);
             printlnConsoleAndFile("      DataParser WARN(key):" + dpWarnKeyList);
