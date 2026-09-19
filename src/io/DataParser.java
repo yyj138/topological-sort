@@ -47,24 +47,33 @@ public class DataParser {
             int lineNumber = i + 1;
             String line = lines[i].strip();
 
+            // 跳过空行
             if (line.isEmpty()) {
                 continue;
             }
 
+            // 跳过 # 注释行
             if (line.startsWith("#")) {
                 continue;
             }
 
+            // 全角尖括号和全角逗号转半角
             line = normalizeFullWidth(line);
 
+            // 解析单行的 <from,to> 格式
             String[] pair = extractPair(line, lineNumber, errors);
             if (pair == null) {
+                // 格式错误，已记录到 errors，跳过本行
                 continue;
             }
 
             String from = pair[0];
             String to = pair[1];
 
+            // 通过 Graph.addEdge 建立关系，自动补齐缺失端点
+            // 自环（from.equals(to)）按正常边处理，由环检测模块提示
+            // addEdge 返回 false 表示重复边，不重复增加入度
+            // try-catch 兜底：即使 containsFormatDelimiter 漏检，也不让 parse 抛异常
             try {
                 boolean added = graph.addEdge(from, to);
                 if (!added) {
@@ -97,14 +106,18 @@ public class DataParser {
      * <p>
      * 名称处理顺序（与 A 的 Vertex.normalizeName 保持一致）：
      * <ol>
+     * <li>不提前 strip 括号内容，保留原始字符；</li>
+     * <li>用 {@code content.strip().isEmpty()} 判断括号内是否为空，
+     *     不改变 content 本身；</li>
+     * <li>提取 fromRaw / toRaw 时不做 strip；</li>
      * <li>先对原始名称检查非法字符（{@code <}、{@code >}、{@code ,}、
-     * 换行符、Unicode 行分隔符）；</li>
+     *     换行符、Unicode 行分隔符）；</li>
      * <li>再对原始名称使用 {@code String.strip()} 去除首尾空白
-     * （含 U+2003 等 Unicode 空白）；</li>
+     *     （含 U+2003 等 Unicode 空白）；</li>
      * <li>最后判断清理后的名称是否为空。</li>
      * </ol>
-     * 不能先 strip 再检查非法字符，否则 U+2028、U+2029 等行分隔符
-     * 可能被 strip 从首尾清掉，导致非法字符漏检。
+     * 不能先 strip 再检查非法字符，否则首尾的 U+2028、U+2029 等
+     * 行分隔符会被 strip 清掉，导致非法字符漏检。
      * </p>
      *
      * @param line       已去除首尾空白并完成全角转换的行
@@ -133,9 +146,11 @@ public class DataParser {
             return null;
         }
 
-        String content = line.substring(left + 1, right).strip();
+        // 不提前 strip 括号内容，保留原始字符，避免首尾 Unicode 行分隔符被清掉
+        String content = line.substring(left + 1, right);
 
-        if (content.isEmpty()) {
+        // 用 content.strip() 判断是否为空，但不改变 content 本身
+        if (content.strip().isEmpty()) {
             errors.add(new ParseIssue(lineNumber, "格式错误：括号内为空"));
             return null;
         }
@@ -146,6 +161,7 @@ public class DataParser {
             return null;
         }
 
+        // 提取原始名称，不 strip
         String fromRaw = content.substring(0, comma);
         String toRaw = content.substring(comma + 1);
 

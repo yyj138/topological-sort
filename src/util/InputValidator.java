@@ -23,6 +23,7 @@ import java.util.Set;
  * <li>名称首尾空白使用 {@code String.strip()} 清理，与 A 的 Vertex.normalizeName 保持一致</li>
  * <li>名称不允许包含 {@code <}、{@code >}、{@code ,}、换行符或 Unicode 行分隔符</li>
  * <li>重复关系作为警告提示，自环保留为合法关系</li>
+ * <li>重复判断使用 (from, to) 二元组作为键，避免名称内部含 {@code \t} 时误判</li>
  * </ul>
  */
 public class InputValidator {
@@ -82,7 +83,8 @@ public class InputValidator {
             return new ValidationResult(true, errors, warnings);
         }
 
-        Set<String> seenEdges = new HashSet<>();
+        // 使用 (from, to) 二元组作为重复键，避免 from/to 内部含 \t 时拼接碰撞
+        Set<List<String>> seenEdges = new HashSet<>();
         String[] lines = input.split("\\r?\\n");
 
         for (int i = 0; i < lines.length; i++) {
@@ -107,8 +109,8 @@ public class InputValidator {
             String from = pair[0];
             String to = pair[1];
 
-            // 使用已 strip 的名称判断重复，和 DataParser 的 Graph.addEdge 对齐
-            String edgeKey = from + "\t" + to;
+            // 使用不可变二元组作为重复键，基于元素内容比较，不会因名称内部含 \t 而碰撞
+            List<String> edgeKey = List.of(from, to);
             if (seenEdges.contains(edgeKey)) {
                 warnings.add(new io.ParseIssue(lineNumber,
                         "重复的关系 <" + from + "," + to + ">，已忽略"));
@@ -137,6 +139,10 @@ public class InputValidator {
      * <p>
      * 名称处理顺序（与 A 的 Vertex.normalizeName 保持一致）：
      * <ol>
+     * <li>不提前 strip 括号内容，保留原始字符；</li>
+     * <li>用 {@code content.strip().isEmpty()} 判断括号内是否为空，
+     * 不改变 content 本身；</li>
+     * <li>提取 fromRaw / toRaw 时不做 strip；</li>
      * <li>先对原始名称检查非法字符（{@code <}、{@code >}、{@code ,}、
      * 换行符、Unicode 行分隔符）；</li>
      * <li>再对原始名称使用 {@code String.strip()} 去除首尾空白
@@ -171,9 +177,11 @@ public class InputValidator {
             return null;
         }
 
-        String content = line.substring(left + 1, right).strip();
+        // 不提前 strip 括号内容，保留原始字符，避免首尾 Unicode 行分隔符被清掉
+        String content = line.substring(left + 1, right);
 
-        if (content.isEmpty()) {
+        // 用 content.strip() 判断是否为空，但不改变 content 本身
+        if (content.strip().isEmpty()) {
             errors.add(new io.ParseIssue(lineNumber, "格式错误：括号内为空"));
             return null;
         }
@@ -184,6 +192,7 @@ public class InputValidator {
             return null;
         }
 
+        // 提取原始名称，不 strip
         String fromRaw = content.substring(0, comma);
         String toRaw = content.substring(comma + 1);
 
