@@ -1,0 +1,34 @@
+Environment: OS=Windows 11, arch=amd64, Java=21.0.6, logical processors=16
+PASS 1: empty graph has one empty sequence
+PASS 2: single vertex and a chain
+Hand example: [[A, B, C], [B, A, C]], complete=true
+PASS 3: two hand-enumerated orders
+PASS 4: diamond has two orders
+PASS 5: disconnected graph includes isolated vertex
+PASS 6: three isolated vertices have all six permutations
+PASS 7: names and duplicate edges
+PASS 8: self-loop, two-vertex and longer cycles
+PASS 9: cycle plus many isolated vertices is rejected before search
+PASS 10: quantity limit retains only complete sequences
+PASS 11: exact limit is conservatively incomplete
+PASS 12: limit above total allows complete enumeration
+PASS 13: caller default limit of 1000
+PASS 14: cancel before work
+Cancellation during search: generated=44, complete=false
+PASS 15: cancel during search retains valid partial results
+PASS 16: deterministic timeout before work
+Simulated timeout during search: generated=44, complete=false
+PASS 17: deterministic timeout during search
+PASS 18: large timeout does not overflow
+PASS 19: invalid arguments
+PASS 20: deeply immutable and independent results
+PASS 21: reuse after cancellation, limits, cycles and callback failure
+PASS 22: all 512 three-vertex graphs checked against permutations
+BENCH chain: V=1000, E=999, maxResults=0, timeoutMillis=10000, generated=1, complete=true, elapsedMillis=29.1279
+PASS 23: 1000-vertex chain
+BENCH isolated: V=1000, E=0, maxResults=1000, timeoutMillis=10000, generated=1000, complete=false, elapsedMillis=104.1797
+PASS 24: 1000 isolated vertices with limit 1000
+Figure 1: V=15, E=16, independentTotal=31185, generated=31185, complete=true, reason=COMPLETED, maxResults=0, timeoutMillis=30000, elapsedMillis=50.863
+Figure 1 saved to: docs\A3\all_results.txt
+PASS 25: Figure 1 checked against independent subset counting
+PASS: 25/25 cases

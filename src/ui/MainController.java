@@ -143,7 +143,7 @@ public class MainController {
 
         frame.getGraphPanel().setGraph(graph);
 
-        List<String> cycle = CycleDetector.findCycle(graph);
+        List<String> cycle = new CycleDetector().findCycle(graph);
         if (!cycle.isEmpty()) {
             onCycleFound(graph, cycle);
             return;
@@ -179,7 +179,7 @@ public class MainController {
 
         @Override
         protected EnumerationResult doInBackground() {
-            EnumerationResult result = AllTopoSorts.enumerate(
+            EnumerationResult result = new AllTopoSorts().enumerate(
                     graph, MAX_RESULTS, TIMEOUT_MILLIS,
                     () -> cancelRequested || isCancelled());
             lastResult = result;

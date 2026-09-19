@@ -1,0 +1,24 @@
+PASS 1: empty graph
+PASS 2: isolated vertex
+PASS 3: automatic endpoints
+PASS 4: duplicate vertex preserves edges
+PASS 5: duplicate edge preserves degrees
+PASS 6: self-loop add, deduplicate and remove
+PASS 7: opposite directed edges
+Example: vertices=[A, B, C, D, E], edges=3, inDegree(C)=2
+  A -> [C]
+  B -> [C]
+  C -> [D]
+  D -> []
+  E -> []
+After removing A -> C: vertices=5, edges=2, inDegree(C)=1
+PASS 8: design example and deletion
+PASS 9: missing edge and repeated deletion
+PASS 10: names: whitespace, Chinese, internal spaces and case
+PASS 11: invalid names and atomic rejection
+PASS 12: unknown node queries and deletion
+PASS 13: read-only snapshots
+PASS 14: stable insertion order
+PASS 15: Vertex and directed Edge value semantics
+PASS 16: 500 seeded mutations against an adjacency matrix
+PASS: 16/16 cases
