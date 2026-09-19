@@ -1,24 +1,42 @@
 package io;
 
-// 解析问题（契约 §六）：错误或警告，含行号与原因
+/**
+ * 描述解析过程中发现的单条问题，包含行号（从 1 开始）和原因。
+ * <p>
+ * 错误（error）表示该行无法解析，有错误时不应启动计算；
+ * 警告（warning）表示该行可继续处理但需要提示用户，例如重复关系。
+ * </p>
+ */
 public class ParseIssue {
 
-    private final int lineNo;
-    private final String reason;
-    private final String content;
+    private final int lineNumber;
+    private final String message;
 
-    public ParseIssue(int lineNo, String reason, String content) {
-        this.lineNo = lineNo;
-        this.reason = reason;
-        this.content = content == null ? "" : content;
+    /**
+     * @param lineNumber 问题所在行号，从 1 开始
+     * @param message    中文原因描述
+     */
+    public ParseIssue(int lineNumber, String message) {
+        this.lineNumber = lineNumber;
+        this.message = message;
     }
 
-    public int getLineNo() { return lineNo; }
-    public String getReason() { return reason; }
-    public String getContent() { return content; }
+    /**
+     * @return 问题所在行号（从 1 开始）
+     */
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    /**
+     * @return 原因描述
+     */
+    public String getMessage() {
+        return message;
+    }
 
     @Override
     public String toString() {
-        return "第 " + lineNo + " 行: " + reason + " (内容: \"" + content + "\")";
+        return "第 " + lineNumber + " 行：" + message;
     }
 }

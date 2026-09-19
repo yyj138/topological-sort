@@ -102,11 +102,11 @@ public class MainController {
         if (!errors.isEmpty()) {
             List<String> msgs = new ArrayList<>();
             for (ParseIssue err : errors) {
-                int line = err.getLineNo();
+                int line = err.getLineNumber();
                 if (line > 0) {
-                    msgs.add("第" + line + "行：" + err.getReason());
+                    msgs.add("第" + line + "行：" + err.getMessage());
                 } else {
-                    msgs.add(err.getReason());
+                    msgs.add(err.getMessage());
                 }
             }
             ExceptionHandler.showParseErrors(frame, msgs);
@@ -120,8 +120,8 @@ public class MainController {
             int show = Math.min(warnings.size(), 10);
             for (int i = 0; i < show; i++) {
                 ParseIssue w = warnings.get(i);
-                int line = w.getLineNo();
-                String reason = w.getReason();
+                int line = w.getLineNumber();
+                String reason = w.getMessage();
                 sb.append(line > 0 ? "第" + line + "行：" + reason : reason);
                 sb.append("\n");
             }
@@ -276,12 +276,36 @@ public class MainController {
         for (List<String> seq : results) {
             lines.add(String.join(" -> ", seq));
         }
+        // 契约 §七：导出必须写明完整性与停止原因（B 作中间人，从 A 的 EnumerationResult 转成中文传给 D）
+        boolean isComplete = lastResult != null && lastResult.isComplete();
+        String stopReasonText = stopReasonText(lastResult);
         try {
-            if (csv) FileManager.exportCsv(file, lines);
-            else FileManager.exportTxt(file, lines);
+            if (csv) FileManager.exportCsv(file, lines, isComplete, stopReasonText);
+            else FileManager.exportTxt(file, lines, isComplete, stopReasonText);
             ExceptionHandler.showInfo(frame, "导出成功：" + file.getName());
         } catch (Exception ex) {
             ExceptionHandler.handle(frame, ex);
+        }
+    }
+
+    // 把 A 的 StopReason 枚举转成导出文件头用的简短中文文案（与 D 约定一致）
+    private String stopReasonText(EnumerationResult result) {
+        if (result == null || result.getStopReason() == null) {
+            return "未知";
+        }
+        switch (result.getStopReason()) {
+            case COMPLETED:
+                return "已生成全部结果";
+            case LIMIT_REACHED:
+                return "达到输出上限，仅显示前 " + result.getGeneratedCount() + " 条";
+            case CANCELLED:
+                return "用户取消";
+            case TIMEOUT:
+                return "计算超时";
+            case CYCLE:
+                return "输入图含环，无合法拓扑排序";
+            default:
+                return "未知";
         }
     }
 
