@@ -176,7 +176,7 @@ sequenceDiagram
         EDT->>EDT: setBusy(true) 禁用计算/启用取消
         EDT->>SB: setTip 计算中
         EDT->>BG: execute(EnumerationWorker)
-        BG->>ALG: enumerate(graph, 10000, 30000, cancelled)
+        BG->>ALG: enumerate(graph, 1000, 30000, cancelled)
         Note over BG,ALG: 用户可随时点"取消计算"<br/>cancelRequested=true，下个回溯检查点退出
         ALG-->>BG: EnumerationResult
         BG-->>EDT: done()
@@ -201,7 +201,7 @@ sequenceDiagram
 9. `new CycleDetector().findCycle(graph)` 返回闭合路径列表；空列表表示无环；自环返回 `[X,X]`，两节点互指返回 `[A,B,A]`；
 10. 有环：画布 `setHighlightedCycle` 标红、结果列表清空、状态栏按含环更新，弹窗显示环路径后结束；
 11. 无环：setBusy 切换按钮状态，启动内部类 EnumerationWorker（继承 SwingWorker）；
-12. 后台执行 `new AllTopoSorts().enumerate(graph, 10000, 30000, 取消谓词)`，结果上限 10000 条、超时 30 秒；
+12. 后台执行 `new AllTopoSorts().enumerate(graph, 1000, 30000, 取消谓词)`，结果上限 1000 条、超时 30 秒；
 13. done() 回到 EDT：填充 ResultPanel、画布高亮首条序列、状态栏更新统计；
 14. 状态栏提示按 StopReason 区分：COMPLETED"枚举完成，共 N 条"、LIMIT_REACHED"达到结果上限"、TIMEOUT"超时停止"、CANCELLED"已取消，已显示部分序列"。
 
@@ -322,7 +322,7 @@ public void reset();
 
 // ui.MainController
 public MainController(MainFrame frame);
-// 常量：MAX_RESULTS = 10000，TIMEOUT_MILLIS = 30000
+// 常量：MAX_RESULTS = 1000，TIMEOUT_MILLIS = 30000
 private void compute();            // 解析→建图→判环→（环：结束 / 无环：后台枚举）
 private void cancelCompute();      // cancelRequested=true 并 worker.cancel(true)
 private void clearResults();
@@ -393,7 +393,7 @@ flowchart TD
     G -->|否| I["取 parsed.getGraph()"]
     I -->|Graph| J["new CycleDetector().findCycle()"]
     J -->|含环| K["环路径红色高亮<br/>警告弹窗"]
-    J -->|无环| L["EnumerationWorker 后台枚举<br/>AllTopoSorts.enumerate(上限10000/30s/可取消)"]
+    J -->|无环| L["EnumerationWorker 后台枚举<br/>AllTopoSorts.enumerate(上限1000/30s/可取消)"]
     L -->|EnumerationResult| M["结果列表+图高亮<br/>状态栏更新"]
     M --> N["导出 PNG / TXT / CSV"]
 ```

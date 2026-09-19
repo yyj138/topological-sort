@@ -24,7 +24,7 @@ import java.util.List;
 public class MainController {
 
     // 枚举上限与超时：防止超大图长时间阻塞
-    private static final int MAX_RESULTS = 10000;
+    private static final int MAX_RESULTS = 1000;
     private static final long TIMEOUT_MILLIS = 30_000L;
 
     private final MainFrame frame;
