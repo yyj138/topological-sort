@@ -1,6 +1,6 @@
 # 拓扑排序应用软件 详细设计报告（GUI 部分）
 
-本报告由组员 B 编写，对应 GUI 主框架与交互控制部分（任务 T-B1 ~ T-B8）的详细设计，属于项目 CST4823A 高级算法原理实践，指导教师廖海泳 / 陈银冬。报告描述界面布局、事件处理流程、GUI 类结构与调用关系。文档版本 V1.2，更新日期 2026 年 9 月 18 日：B 侧对接方式按跨模块接口契约 V1.0 重写——`MainController` 与 `InputPanel` 不再通过 `DataParser.Edge` 边列表手动建图，改为直接调用 `ParseResult.getGraph()` 取得 `model.Graph`；问题类型由 `DataParser.ParseError` 升级为顶层 `io.ParseIssue`，区分 `getErrors()`（中止）与 `getWarnings()`（提示）。`DataParser.parse` 按契约为实例方法，B 持有 `new DataParser()` 实例调用。V1.2 定稿时 io 包采用 A 在 HEAD 中提供的 T-D1 契约桩（`DataParser` + 顶层 `ParseResult` / `ParseIssue`），全量 `-encoding UTF-8` 编译零错误；`ParseIssue` 实际访问方法为 `getLineNo() / getReason() / getContent()`，待 D 交付正式解析器时保持这一签名即可无缝替换。V1.1 中 §7.3 记录的"InputValidator 规则不一致"与"A 新版契约未合入"两项遗留由此关闭。
+本报告由组员 B 编写，对应 GUI 主框架与交互控制部分（任务 T-B1 ~ T-B8）的详细设计，属于项目 CST4823A 高级算法原理实践，指导教师廖海泳 / 陈银冬。报告描述界面布局、事件处理流程、GUI 类结构与调用关系。文档版本 V1.3，更新日期 2026 年 9 月 19 日：V1.3 起 io 包已接入 D 正式版（`DataParser` / `ParseResult` / `ParseIssue`），`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，枚举上限按接口契约统一为 1000 条 / 30 秒 / 可取消。V1.2 历史：B 侧对接方式按跨模块接口契约 V1.0 重写——`MainController` 与 `InputPanel` 不再通过 `DataParser.Edge` 边列表手动建图，改为直接调用 `ParseResult.getGraph()` 取得 `model.Graph`；问题类型由 `DataParser.ParseError` 升级为顶层 `io.ParseIssue`。V1.1 中 §7.3 记录的"InputValidator 规则不一致"与"A 新版契约未合入"两项遗留由此关闭。
 
 ## 一、设计概述
 
