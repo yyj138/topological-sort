@@ -446,7 +446,7 @@ flowchart TD
 | T-B6/T-B7 文档 | 完成（V1.4） | 需求分析报告、本报告随代码同步更新至 V1.4 |
 | T-B8 UIStyle | 完成（V1.1 起） | 全局样式统一；修复中文方块问题（Consolas → Font.MONOSPACED），V1.2 保持未回退 |
 
-流水线验证（dev-b，V1.2）：全量 `javac -encoding UTF-8` 编译零错误；23 项命令行链路冒烟全部通过——data/figure1.txt（15 节点/16 边，节点名含内部空格）解析后节点数/边数精确、Kahn 序列覆盖全部节点；重复边产生 warning 且不计入度数；自环返回 `[X,X]`；非法行返回带行号 error；全角 `＜＞，` 兼容；仅注释输入返回空 Graph 且无 error；小图全枚举恰得 2 条 COMPLETED 序列；孤立节点保留并进入每条序列；含环图枚举入口以 CYCLE 拒绝。
+流水线验证（dev-b，V1.4）：全量 `javac -encoding UTF-8` 编译零错误；A 侧 GraphSelfTest 16/16、CycleDetectorSelfTest 19/19；D 侧 TestDataParser 35/35、TestFileManager 14/14、TestInputValidator 39/39；E 侧 AlgorithmTest 18/18、ParserFaultTest 15/15；23 项命令行链路冒烟全部通过——data/figure1.txt（15 节点/16 边，节点名含内部空格）解析后节点数/边数精确、Kahn 序列覆盖全部节点；重复边产生 warning 且不计入度数；自环返回 `[X,X]`；非法行返回带行号 error；全角 `＜＞，` 兼容；仅注释输入返回空 Graph 且无 error；小图全枚举恰得 2 条 COMPLETED 序列；孤立节点保留并进入每条序列；含环图枚举入口以 CYCLE 拒绝。
 
 > 解析层现状：io 包已由 D 交付正式实现（`DataParser.parse` 实例方法 + 顶层 `ParseResult` / `ParseIssue`），B 已完整对接。D 的 `ParseIssue` 公开方法为 `getLineNumber() / getMessage()`，B 侧已适配。导出走 D 的新重载 `exportTxt/exportCsv(file, lines, isComplete, stopReasonText)`，B 在 MainController 中把 A 的 StopReason 枚举转成中文传入。
 
@@ -461,8 +461,9 @@ flowchart TD
 
 1. **解析器已接入 D 正式版**（V1.3）：D 交付的 `DataParser` / `ParseResult` / `ParseIssue` 已替换原 A 契约桩，`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，B 侧已适配并通过 D 的自测（DataParser 35/35、FileManager 14/14、InputValidator 39/39）；
 2. **画布已接入 C 正式版**（V1.4）：C 交付的 GraphPanel 提供 setGraph/setHighlightedCycle/setSelectedOrder/exportPNG 四个方法，与 MainController 对接完成；
-3. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
-4. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。
+3. **测试已接入 E 的 E1/E2**（V1.4）：AlgorithmTest 18/18（正确性/边界/环/性能）、ParserFaultTest 15/15（解析器容错），全部通过；
+4. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
+5. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。
 
 > V1.1 遗留的"InputValidator 规则不一致"与"A 新版契约未合入 main"两项在 V1.2 中已通过 B 侧直接对接契约 V1.0 关闭：B 不依赖 `InputValidator`，也不再调用 `Graph.addEdge` 建图。
 
