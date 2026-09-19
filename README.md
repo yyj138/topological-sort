@@ -4,11 +4,10 @@
 
 ## 功能特性
 
-- 图形界面输入（文本粘贴 + 表格编辑），实时绘制关系图
+- 图形界面输入（文本粘贴 + 表格编辑），环形布局绘制关系图
 - Kahn 拓扑排序 + DFS 回溯枚举全部结果（默认上限 1000 条，可取消/超时）
-- 环检测并定位环路径（如 A→B→C→A），界面高亮
-- 数据导入导出（txt/csv）、关系图导出 PNG（中文不乱码）
-- 分层 / 环形布局切换，缩放、平移、拖拽
+- 环检测并定位环路径，界面红色高亮；选中序列绿色高亮
+- 数据导入导出（txt/csv）、关系图导出 PNG
 - 异常容错：非法输入定位到行号，重复边去重，自环标记
 
 ## 技术栈
@@ -178,8 +177,25 @@ $files = (Get-ChildItem -Recurse -Filter "*.java" src |
 
 # 跑自测
 java -cp out GraphSelfTest
+java -cp out CycleDetectorSelfTest
 java -cp out test.TestDataParser
+java -cp out test.TestFileManager
+java -cp out test.TestInputValidator
+java -cp out test.AlgorithmTest
+java -cp out test.ParserFaultTest
 
 # 启动 GUI
 java -cp out ui.MainFrame
 ```
+
+## 测试覆盖
+
+| 模块 | 测试类 | 用例数 | 负责 |
+|------|--------|--------|------|
+| A 图结构 | GraphSelfTest | 16/16 | A |
+| A 环检测 | CycleDetectorSelfTest | 19/19 | A |
+| D 数据解析 | TestDataParser | 35/35 | D |
+| D 文件读写 | TestFileManager | 14/14 | D |
+| D 输入校验 | TestInputValidator | 39/39 | D |
+| E 算法综合 | AlgorithmTest | 18/18 | E |
+| E 解析容错 | ParserFaultTest | 15/15 | E |
