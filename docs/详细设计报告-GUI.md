@@ -190,7 +190,7 @@ sequenceDiagram
 1. 用户点击"计算拓扑排序"（菜单项或工具栏按钮触发同一入口）；
 2. MainController.compute() 取输入文本，空白（仅空白字符）直接警告并中止；
 3. 调用契约 §6 规定的实例方法 `dataParser.parse(text)`（B 持有 `new DataParser()` 实例），返回顶层 `io.ParseResult`；
-4. `parsed.getErrors()` 非空时，把每条 `ParseIssue` 格式化为"第x行：原因"（`getLineNo()==0` 的全局性错误只显示原因），最多展示 20 条后**中止流程**；
+4. `parsed.getErrors()` 非空时，把每条 `ParseIssue` 格式化为"第x行：原因"（`getLineNumber()==0` 的全局性错误只显示原因），最多展示 20 条后**中止流程**；
 5. `parsed.getWarnings()` 非空时（如重复关系），按相同格式 Info 弹窗提示（最多 10 条），**不中止**；
 6. **直接取图**：`Graph graph = parsed.getGraph();` ——B 不再调 `Graph.addEdge`，建图职责完全由 D 在解析器内部完成（契约 §6 + 图设计 §一）；
 7. 若 `graph.getVertexCount()==0 && graph.getEdgeCount()==0`，按契约 §6 "整份输入没有有效节点和关系" 由输入层提示，警告并中止；
@@ -356,13 +356,14 @@ public static void handle(Component parent, Throwable t);
 | EnumerationWorker | algorithm.AllTopoSorts | 实例方法 enumerate(Graph,int,long,BooleanSupplier)（new AllTopoSorts() 后调用） | EnumerationResult | 无环时后台枚举 |
 | MainController | EnumerationResult | getSequences() / getGeneratedCount() / isComplete() / getStopReason() | — | 回填 UI 与提示 |
 | MainController / InputPanel | io.FileManager | readFile / saveFile / exportTxt / exportCsv（均 static，File 参数，抛 IOException） | — | 文件读写与结果导出 |
+| MainController | io.FileManager | exportTxt/exportCsv(File, List<String>, boolean isComplete, String stopReasonText)（新重载，契约 §七） | void | 正式业务导出，文件头写明完整性与停止原因 |
 | MainController | view.GraphPanel | setGraph / setHighlightedCycle / setSelectedOrder / exportPNG | void | 画布刷新与导出 |
 | MainController | ResultPanel / StatusBar | setResults / updateStats / setTip | void | 结果与状态刷新 |
 
 补充类型：
 
 - `io.ParseResult`：`Graph getGraph()`、`List<ParseIssue> getErrors()`、`List<ParseIssue> getWarnings()`（另有 `hasErrors/hasWarnings/getErrorCount/getWarningCount` 便捷方法）；契约 §6 规定的顶层类型，B 不访问解析器内部的边/自环列表；
-- `io.ParseIssue`：`int getLineNo()`（1 起行号；0 表示整份输入级别的全局问题）、`String getReason()`、`String getContent()`（出错行原文）；
+- `io.ParseIssue`：`int getLineNumber()`（1 起行号；0 表示整份输入级别的全局问题）、`String getMessage()`、`String getContent()`（出错行原文）；
 - `algorithm.TopoResult`：getOrder()、hasCycle()；`StopReason`：COMPLETED / LIMIT_REACHED / CANCELLED / TIMEOUT / CYCLE；
 - 空图枚举按契约返回 `[[]]`（生成数 1、完整），含环图返回 CYCLE、序列为空。
 
@@ -420,7 +421,7 @@ flowchart TD
 ```
 第3行：格式错误：应为 <a,b>
 第7行：顶点名不能为空
-（getLineNo() == 0 时省略"第x行："前缀，直接显示全局原因）
+（getLineNumber() == 0 时省略"第x行："前缀，直接显示全局原因）
 ```
 
 警告（`getWarnings()`，如重复关系）以 Info 弹窗同格式展示，不中止流程。
@@ -443,7 +444,7 @@ flowchart TD
 
 流水线验证（dev-b，V1.2）：全量 `javac -encoding UTF-8` 编译零错误；23 项命令行链路冒烟全部通过——data/figure1.txt（15 节点/16 边，节点名含内部空格）解析后节点数/边数精确、Kahn 序列覆盖全部节点；重复边产生 warning 且不计入度数；自环返回 `[X,X]`；非法行返回带行号 error；全角 `＜＞，` 兼容；仅注释输入返回空 Graph 且无 error；小图全枚举恰得 2 条 COMPLETED 序列；孤立节点保留并进入每条序列；含环图枚举入口以 CYCLE 拒绝。
 
-> 解析层现状：io 包当前为 A 在 HEAD 中提供的 T-D1 契约桩（`DataParser.parse` 实例方法 + 顶层 `ParseResult` / `ParseIssue`），B 已完整对接。D 交付正式解析器时只要保持契约 §6 签名（`getGraph/getErrors/getWarnings` 与 `ParseIssue.getLineNo/getReason/getContent`）即可无缝替换，B 侧无需改动。
+> 解析层现状：io 包已由 D 交付正式实现（`DataParser.parse` 实例方法 + 顶层 `ParseResult` / `ParseIssue`），B 已完整对接。D 的 `ParseIssue` 公开方法为 `getLineNumber() / getMessage() / getContent()`，B 侧已适配。导出走 D 的新重载 `exportTxt/exportCsv(file, lines, isComplete, stopReasonText)`，B 在 MainController 中把 A 的 StopReason 枚举转成中文传入。
 
 ### 7.2 中文显示问题的排查结论
 
@@ -454,7 +455,7 @@ flowchart TD
 
 ### 7.3 已知差异与遗留项
 
-1. **解析器为 A 契约桩，D 正式版待交付**：当前 `io.DataParser` / `io.ParseResult` / `io.ParseIssue` 采用 A 在 HEAD 中提供的 T-D1 桩实现（已满足契约 §6 并通过 23 项链路冒烟）；D 的正式实现需保持相同公开签名，B 侧不需改动；
+1. **解析器已接入 D 正式版**（V1.3）：D 交付的 `DataParser` / `ParseResult` / `ParseIssue` 已替换原 A 契约桩，`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，B 侧已适配并通过 D 的自测（DataParser 32/32、FileManager 14/14、InputValidator 36/36）；
 2. **画布为占位实现**：当前环形静态布局由 B 维护，分层布局、缩放拖拽、悬停高亮、点击反馈按会议决议等待 C 迭代；GraphPanel 的三个 set/export 方法签名已按对接需要固定；
 3. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
 4. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。
@@ -469,12 +470,12 @@ flowchart TD
 
 ```
 e:\tp
-├── src\                          源码根（编译输出 src\out，已被 .gitignore 忽略）
+├── src\                          源码根（编译输出根目录 out/，已被 .gitignore 忽略）
 │   ├── model\                    A：Graph / Vertex / Edge
 │   ├── algorithm\                A：TopologicalSolver / TopoResult
 │   │                             │   AllTopoSorts / EnumerationResult / StopReason
 │   │                             └── CycleDetector
-│   ├── io\                       DataParser / ParseResult / ParseIssue（A 的 T-D1 契约桩，D 正式版待替换）
+│   ├── io\                       DataParser / ParseResult / ParseIssue（D 正式版，已替换 A 契约桩）
 │   │                             │   FileManager（D 实现，B 直接复用）
 │   ├── util\                     D：InputValidator（B 计算流程不依赖，见 §7.3）；B：UIStyle / ExceptionHandler
 │   ├── ui\                       B：MainFrame(T-B1) / InputPanel(T-B2)
