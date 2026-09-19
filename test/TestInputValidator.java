@@ -177,7 +177,7 @@ public class TestInputValidator {
                     assertEqual("第2个错误行号", result.getErrors().get(1).getLineNumber(), 2);
                 });
 
-        test("名称含 Unicode 行分隔符 \\u2028",
+        test("名称中间含 Unicode 行分隔符 \\u2028",
                 "<A\u2028B,C>",
                 result -> {
                     assertFalse("不应通过校验", result.isValid());
@@ -187,8 +187,28 @@ public class TestInputValidator {
                             "非法字符");
                 });
 
-        test("名称含 Unicode 行分隔符 \\u0085",
+        test("名称中间含 Unicode 行分隔符 \\u0085",
                 "<A\u0085B,C>",
+                result -> {
+                    assertFalse("不应通过校验", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(),
+                            "非法字符");
+                });
+
+        test("名称首含 Unicode 行分隔符 \\u2028",
+                "<\u2028A,B>",
+                result -> {
+                    assertFalse("不应通过校验", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(),
+                            "非法字符");
+                });
+
+        test("名称尾含 Unicode 行分隔符 \\u2028",
+                "<A,\u2028B>",
                 result -> {
                     assertFalse("不应通过校验", result.isValid());
                     assertEqual("错误数", result.getErrors().size(), 1);

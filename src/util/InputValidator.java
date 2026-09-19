@@ -137,6 +137,10 @@ public class InputValidator {
      * <p>
      * 名称处理顺序（与 A 的 Vertex.normalizeName 保持一致）：
      * <ol>
+     * <li>不提前 strip 括号内容，保留原始字符；</li>
+     * <li>用 {@code content.strip().isEmpty()} 判断括号内是否为空，
+     * 不改变 content 本身；</li>
+     * <li>提取 fromRaw / toRaw 时不做 strip；</li>
      * <li>先对原始名称检查非法字符（{@code <}、{@code >}、{@code ,}、
      * 换行符、Unicode 行分隔符）；</li>
      * <li>再对原始名称使用 {@code String.strip()} 去除首尾空白
@@ -171,9 +175,11 @@ public class InputValidator {
             return null;
         }
 
-        String content = line.substring(left + 1, right).strip();
+        // 不提前 strip 括号内容，保留原始字符，避免首尾 Unicode 行分隔符被清掉
+        String content = line.substring(left + 1, right);
 
-        if (content.isEmpty()) {
+        // 用 content.strip() 判断是否为空，但不改变 content 本身
+        if (content.strip().isEmpty()) {
             errors.add(new io.ParseIssue(lineNumber, "格式错误：括号内为空"));
             return null;
         }
@@ -184,6 +190,7 @@ public class InputValidator {
             return null;
         }
 
+        // 提取原始名称，不 strip
         String fromRaw = content.substring(0, comma);
         String toRaw = content.substring(comma + 1);
 
