@@ -43,27 +43,28 @@
 主窗口采用**三段式垂直布局**（菜单栏—工具栏—内容区—状态栏）：
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':15,'rankSpacing':25,'padding':4}}}%%
 flowchart TB
-    MenuBar["菜单栏<br/>文件(F)  编辑(E)  计算(C)  帮助(H)"]
-    ToolBar["工具栏<br/>[打开] [保存] | [计算] [取消计算] | [导出图片] [导出结果]"]
+    MenuBar["菜单栏：文件 / 编辑 / 计算 / 帮助"]
+    ToolBar["工具栏：打开 | 保存 | 计算 | 取消 | 导出图片 | 导出结果"]
     subgraph Content["内容区（左右分割）"]
         direction LR
         subgraph Left["左栏 InputPanel"]
             direction TB
-            Lbtns["按钮区<br/>[载入文件][保存数据] [文本→表格][表格→文本]<br/>[+增行][-删行][清空]"]
-            TextArea["文本编辑区<br/># 请按 &lt;a,b&gt; 格式...<br/>&lt;MA 140,MA 141&gt;"]
-            TableView["表格编辑视图<br/>起点 | 终点<br/>MA 140 | MA 141"]
+            Lbtns["按钮区：载入/保存/双向同步/增删行/清空"]
+            TextArea["文本编辑区（&lt;a,b&gt; 格式）"]
+            TableView["表格编辑视图（起点-终点）"]
             Lbtns --> TextArea --> TableView
         end
         subgraph Right["右栏"]
             direction TB
-            GraphView["关系图视图 GraphPanel<br/>环形布局，有向箭头<br/>环路径红色高亮"]
-            ResultView["拓扑排序结果列表 ResultPanel<br/>1. MA 140 -> MA 141 -> ...<br/>共 N 条 | 1/K 页 [首页][上][下]<br/>[复制当前][清空]"]
+            GraphView["关系图视图 GraphPanel（环形布局）"]
+            ResultView["结果列表 ResultPanel（每页 20 条）"]
             GraphView --> ResultView
         end
         Left ~~~ Right
     end
-    StatusBar["状态栏 StatusBar<br/>节点:3 | 边数:2 | 无环 | 序列数:1 | 耗时:6ms    枚举完成..."]
+    StatusBar["状态栏：节点数 | 边数 | 含环 | 序列数 | 耗时 | 提示"]
     MenuBar --> ToolBar --> Content --> StatusBar
 ```
 
@@ -91,31 +92,26 @@ flowchart TB
 ### 2.3 菜单结构
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':15,'rankSpacing':25,'padding':4}}}%%
 flowchart LR
-    subgraph 菜单
-        direction TB
-        F["文件(F) Alt+F"]
-        E["编辑(E) Alt+E"]
-        C["计算(C) Alt+C"]
-        H["帮助(H) Alt+H"]
-    end
-
-    F --> F1["打开...<br/>FileManager.readFile"]
-    F --> F2["保存数据<br/>FileManager.saveFile"]
-    F --> F3["导出图片<br/>GraphPanel.exportPNG"]
-    F --> F4["导出结果...<br/>FileManager.exportTxt / exportCsv"]
+    F["文件(F) Alt+F"] --> F1["打开..."]
+    F --> F2["保存数据"]
+    F --> F3["导出图片"]
+    F --> F4["导出结果..."]
     F --> F5["退出"]
 
-    E --> E1["文本 → 表格<br/>DataParser.parse"]
-    E --> E2["表格 → 文本<br/>表格行写回 &lt;a,b&gt;"]
+    E["编辑(E) Alt+E"] --> E1["文本→表格"]
+    E --> E2["表格→文本"]
     E --> E3["清空输入"]
 
-    C --> C1["计算拓扑排序<br/>解析→建图→判环→后台枚举"]
-    C --> C2["取消计算<br/>终止并展示部分结果"]
+    C["计算(C) Alt+C"] --> C1["计算拓扑排序"]
+    C --> C2["取消计算"]
     C --> C3["清空结果"]
 
-    H --> H1["使用说明"]
+    H["帮助(H) Alt+H"] --> H1["使用说明"]
     H --> H2["关于"]
+
+    ~~~
 ```
 
 说明：当前只注册了 Alt+字母 菜单助记符（setMnemonic），未注册 Ctrl+ 加速键；"计算"与"取消计算"按枚举运行状态互斥启用。
@@ -205,12 +201,11 @@ sequenceDiagram
 ### 3.3 用户选中序列时的事件流
 
 ```mermaid
-flowchart TB
-    U["用户单击 ResultPanel 列表项（单选模式）"]
-    L["SelectionListener.onSequenceSelected(seq)"]
-    M["MainController.bindActions() 注册的 lambda"]
-    G["graphPanel.setSelectedOrder(seq)<br/>序列中的节点在画布上蓝色高亮"]
-    U --> L --> M --> G
+%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':15,'rankSpacing':25,'padding':4}}}%%
+flowchart LR
+    U["用户单击 ResultPanel 列表项"] --> L["onSequenceSelected(seq)"]
+    L --> M["MainController 绑定回调"]
+    M --> G["GraphPanel.setSelectedOrder(seq)<br/>画布上蓝色高亮选中序列"]
 ```
 
 双击列表项或点击"复制当前"把 `a -> b -> c` 形式的序列写入系统剪贴板。
@@ -233,46 +228,38 @@ flowchart TB
 ### 4.1 类结构总览
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':15,'rankSpacing':25,'padding':4}}}%%
 flowchart TB
-    subgraph ui["ui 包（组员 B）"]
-        MF["MainFrame (JFrame)<br/>T-B1 主窗口/入口"]
-        IP["InputPanel (JPanel)<br/>T-B2 文本+表格输入"]
-        RP["ResultPanel (JPanel)<br/>T-B3 分页结果列表"]
-        SB["StatusBar (JPanel)<br/>T-B5 状态栏"]
-        MC["MainController<br/>T-B4 流程编排<br/>内部类 EnumerationWorker(SwingWorker)"]
+    subgraph ui["ui（B）"]
+        MF["MainFrame T-B1"]
+        IP["InputPanel T-B2"]
+        RP["ResultPanel T-B3"]
+        SB["StatusBar T-B5"]
+        MC["MainController T-B4<br/>+ EnumerationWorker"]
     end
-
-    subgraph view["view 包（C 演进，B 维护当前静态版）"]
-        GP["GraphPanel (JPanel)<br/>setGraph / setHighlightedCycle<br/>setSelectedOrder / exportPNG"]
+    subgraph view["view（C 演进）"]
+        GP["GraphPanel<br/>setGraph/exportPNG"]
     end
-
-    subgraph util["util 包（组员 B）"]
-        US["UIStyle<br/>T-B8 配色/字体/间距"]
-        EH["ExceptionHandler<br/>T-B5 中文弹窗"]
+    subgraph util["util（B/D）"]
+        US["UIStyle T-B8"]
+        EH["ExceptionHandler T-B5"]
     end
-
-    subgraph io["io 包（组员 D 正式实现）"]
+    subgraph io["io（D 正式版）"]
         DP["DataParser"]
         FM["FileManager"]
-        IV["InputValidator"]
     end
-
-    subgraph model["model 包（A）"]
+    subgraph model["model（A）"]
         G["Graph / Vertex / Edge"]
     end
-
-    subgraph algorithm["algorithm 包（A）"]
-        TS["TopologicalSolver / TopoResult"]
-        ATS["AllTopoSorts / EnumerationResult / StopReason"]
+    subgraph algorithm["algorithm（A）"]
         CD["CycleDetector"]
+        ATS["AllTopoSorts"]
     end
-
-    MF -->|持有| GP
-    MC -->|持有| GP
     MC -->|调用| DP
     MC -->|调用| FM
     MC -->|调用| CD
     MC -->|调用| ATS
+    MC -->|持有| GP
     MC -->|使用| EH
     MF -->|使用| US
     DP -->|构建| G
@@ -483,24 +470,21 @@ flowchart TD
 ### 8.1 实际目录结构（dev-b）
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontSize':'12px'},'flowchart':{'nodeSpacing':15,'rankSpacing':25,'padding':4}}}%%
 flowchart LR
     Root[("E:\tp 仓库根")]
-    Root --> src["src/ 源码根"]
-    Root --> data["data/ 数据文件"]
-    Root --> docs["docs/ 设计文档"]
-    Root --> test["test/ 测试代码"]
-    Root --> screenshots["screenshots/ 截图"]
+    Root --> src["src/ 源码"]
+    Root --> data["data/ 数据"]
+    Root --> docs["docs/ 文档"]
+    Root --> test["test/ 测试"]
     Root --> readme["README.md"]
 
-    src --> model["model/<br/>Graph / Vertex / Edge<br/>（A）"]
-    src --> algorithm["algorithm/<br/>TopologicalSolver / AllTopoSorts<br/>CycleDetector / StopReason<br/>（A）"]
-    src --> io["io/<br/>DataParser / FileManager<br/>ParseResult / ParseIssue<br/>（D 正式版）"]
-    src --> util["util/<br/>UIStyle / ExceptionHandler（B）<br/>InputValidator（D）"]
-    src --> ui["ui/<br/>MainFrame / InputPanel<br/>ResultPanel / MainController / StatusBar<br/>（B）"]
-    src --> view["view/<br/>GraphPanel（C 演进）"]
-
-    data --> f1["figure1.txt<br/>15 节点 / 16 边"]
-    data --> f2["curriculum.txt<br/>43 节点 / 85 边"]
+    src --> model["model/（A）"]
+    src --> algo["algorithm/（A）"]
+    src --> io["io/（D）"]
+    src --> util["util/（B/D）"]
+    src --> ui["ui/（B）"]
+    src --> view["view/（C）"]
 ```
 
 ### 8.2 编译与运行（PowerShell，必须显式指定 UTF-8）
