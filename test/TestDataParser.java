@@ -88,14 +88,43 @@ public class TestDataParser {
                     assertEqual("错误数", result.getErrors().size(), 0);
                 });
 
-        // ========== 二、非法输入 ==========
+        // ========== 二、非法输入（细分报错消息） ==========
         System.out.println("\n【二、非法输入】");
 
-        test("缺少尖括号",
+        test("缺少左括号",
                 "A,B",
                 result -> {
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：缺少左括号 '<'");
+                });
+
+        test("缺少右括号",
+                "<A,B",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：缺少右括号 '>'");
+                });
+
+        test("尖括号顺序错误",
+                ">A,B<",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：尖括号顺序错误");
+                });
+
+        test("括号内为空",
+                "<>",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：括号内为空");
                 });
 
         test("缺少逗号",
@@ -103,6 +132,8 @@ public class TestDataParser {
                 result -> {
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：缺少逗号分隔符");
                 });
 
         test("起点为空",
@@ -110,6 +141,8 @@ public class TestDataParser {
                 result -> {
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：起点名称为空");
                 });
 
         test("终点为空",
@@ -117,13 +150,8 @@ public class TestDataParser {
                 result -> {
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
-                });
-
-        test("完全乱码行",
-                "qwertyuiop",
-                result -> {
-                    assertEqual("错误数", result.getErrors().size(), 1);
-                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：终点名称为空");
                 });
 
         test("名称含非法字符（尖括号）",
@@ -131,6 +159,8 @@ public class TestDataParser {
                 result -> {
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误消息", result.getErrors().get(0).getMessage(),
+                            "起点名称包含非法字符");
                 });
 
         test("名称含非法字符（逗号）",
@@ -138,6 +168,17 @@ public class TestDataParser {
                 result -> {
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误消息", result.getErrors().get(0).getMessage(),
+                            "终点名称包含非法字符");
+                });
+
+        test("完全乱码行",
+                "qwertyuiop",
+                result -> {
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：缺少左括号 '<'");
                 });
 
         test("null 输入不崩溃",
@@ -174,6 +215,8 @@ public class TestDataParser {
                     assertEqual("边数", result.getGraph().getEdgeCount(), 1);
                     assertEqual("警告数", result.getWarnings().size(), 1);
                     assertEqual("错误数", result.getErrors().size(), 0);
+                    assertEqual("警告消息", result.getWarnings().get(0).getMessage(),
+                            "重复的关系 <A,B>，已忽略");
                 });
 
         test("合法+非法混合，错误行不影响合法行",
@@ -183,6 +226,8 @@ public class TestDataParser {
                     assertEqual("边数", result.getGraph().getEdgeCount(), 2);
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 2);
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：缺少左括号 '<'");
                 });
 
         test("注释+空格+合法+重复+非法混合",
@@ -261,42 +306,29 @@ public class TestDataParser {
 
     // ========== 测试工具方法 ==========
 
-    /**
-     * 测试用例函数接口。
-     */
     @FunctionalInterface
     interface TestCase {
         void check(ParseResult result);
     }
 
-    /**
-     * 执行单个测试用例。
-     *
-     * @param name     用例名称
-     * @param input    输入文本
-     * @param testCase 验证逻辑
-     */
     private static void test(String name, String input, TestCase testCase) {
         DataParser parser = new DataParser();
         try {
             ParseResult result = parser.parse(input);
             testCase.check(result);
             System.out.println("  [PASS] " + name);
-            // 打印错误列表详情（如果有）
             if (!result.getErrors().isEmpty()) {
                 for (ParseIssue issue : result.getErrors()) {
                     System.out.println("         → 行号 " + issue.getLineNumber()
                             + "：" + issue.getMessage());
                 }
             }
-            // 打印警告列表详情（如果有）
             if (!result.getWarnings().isEmpty()) {
                 for (ParseIssue issue : result.getWarnings()) {
                     System.out.println("         → 行号 " + issue.getLineNumber()
                             + "：" + issue.getMessage());
                 }
             }
-            // 打印图信息
             Graph g = result.getGraph();
             if (g.getVertexCount() > 0) {
                 System.out.println("         → 图信息：节点 " + g.getVertexCount()
@@ -312,16 +344,15 @@ public class TestDataParser {
         }
     }
 
-    /**
-     * 断言两个值相等。
-     *
-     * @param label    标签
-     * @param actual   实际值
-     * @param expected 期望值
-     */
     private static void assertEqual(String label, Object actual, Object expected) {
         if (!actual.equals(expected)) {
             throw new AssertionError(label + "：期望 " + expected + "，实际 " + actual);
+        }
+    }
+
+    private static void assertContains(String label, String text, String keyword) {
+        if (text == null || !text.contains(keyword)) {
+            throw new AssertionError(label + "：期望包含 \"" + keyword + "\"，实际 \"" + text + "\"");
         }
     }
 }

@@ -87,13 +87,31 @@ public class TestInputValidator {
         // ========== 二、非法输入 ==========
         System.out.println("\n【二、非法输入】");
 
-        test("缺少尖括号",
+        test("缺少左括号",
                 "A,B",
                 result -> {
                     assertFalse("不应通过校验", result.isValid());
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
-                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(), "尖括号");
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(), "缺少左括号");
+                });
+
+        test("缺少右括号",
+                "<A,B",
+                result -> {
+                    assertFalse("不应通过校验", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(), "缺少右括号");
+                });
+
+        test("尖括号顺序错误",
+                ">A,B<",
+                result -> {
+                    assertFalse("不应通过校验", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 1);
+                    assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(), "尖括号顺序错误");
                 });
 
         test("缺少逗号",
@@ -129,6 +147,7 @@ public class TestInputValidator {
                     assertFalse("不应通过校验", result.isValid());
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(), "缺少左括号");
                 });
 
         test("名称含非法字符（尖括号）",
@@ -146,6 +165,7 @@ public class TestInputValidator {
                     assertFalse("不应通过校验", result.isValid());
                     assertEqual("错误数", result.getErrors().size(), 1);
                     assertEqual("错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(), "非法字符");
                 });
 
         test("名称含非法字符（换行符）",
@@ -153,6 +173,8 @@ public class TestInputValidator {
                 result -> {
                     assertFalse("不应通过校验", result.isValid());
                     assertEqual("错误数", result.getErrors().size(), 2);
+                    assertEqual("第1个错误行号", result.getErrors().get(0).getLineNumber(), 1);
+                    assertEqual("第2个错误行号", result.getErrors().get(1).getLineNumber(), 2);
                 });
 
         test("括号内为空",
@@ -160,7 +182,8 @@ public class TestInputValidator {
                 result -> {
                     assertFalse("不应通过校验", result.isValid());
                     assertEqual("错误数", result.getErrors().size(), 1);
-                    assertContains("错误信息含关键字", result.getErrors().get(0).getMessage(), "为空");
+                    assertEqual("错误消息", result.getErrors().get(0).getMessage(),
+                            "格式错误：括号内为空");
                 });
 
         test("null 输入不崩溃",
@@ -194,6 +217,8 @@ public class TestInputValidator {
                     assertEqual("警告数", result.getWarnings().size(), 1);
                     assertEqual("警告行号", result.getWarnings().get(0).getLineNumber(), 2);
                     assertContains("警告信息含关键字", result.getWarnings().get(0).getMessage(), "重复");
+                    assertEqual("警告消息", result.getWarnings().get(0).getMessage(),
+                            "重复的关系 <A,B>，已忽略");
                 });
 
         test("合法+非法混合，错误行不影响合法行",
@@ -266,11 +291,8 @@ public class TestInputValidator {
                     assertTrue("行首空格应容忍", result.isValid());
                 });
 
-        test("DataParser 不要求尖括号在行首",
-                "prefix <A,B>",
-                result -> {
-                    assertTrue("尖括号不在行首应通过", result.isValid());
-                });
+        // 注：尖括号前允许有前缀字符，InputValidator 与 DataParser 行为一致，
+        // 契约未要求尖括号必须在行首，故不设计“尖括号外侧非法字符”用例。
 
         // ========== 结果汇总 ==========
         System.out.println("\n========================================");

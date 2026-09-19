@@ -23,8 +23,8 @@ public class TestFileManager {
         System.out.println("  FileManager 文件读写测试");
         System.out.println("========================================\n");
 
-        // 测试1：保存文件并读回，验证往返读写一致
-        test("往返读写一致性", () -> {
+        // 测试1：半角输入保存并读回，验证往返读写一致
+        test("往返读写一致性（半角输入）", () -> {
             String content = "# 测试数据\n<a,b>\n<b,c>\n";
             File testFile = new File("test_output.txt");
             FileManager.saveFile(testFile, content);
@@ -132,6 +132,26 @@ public class TestFileManager {
             f.delete();
         });
 
+        // 测试9：全角输入保存，读回得到半角
+        test("全角输入保存后读回为半角", () -> {
+            String fullWidthContent = "＜A，B＞\n＜C，D＞\n";
+            File testFile = new File("test_fullwidth.txt");
+            FileManager.saveFile(testFile, fullWidthContent);
+            String readBack = FileManager.readFile(testFile);
+            assertEqual("读回内容为半角", readBack, "<A,B>\n<C,D>\n");
+            testFile.delete();
+        });
+
+        // 测试10：保存时换行统一为 \n
+        test("保存时换行统一为\\n", () -> {
+            String contentWithCrlf = "<a,b>\r\n<c,d>\r\n";
+            File testFile = new File("test_crlf.txt");
+            FileManager.saveFile(testFile, contentWithCrlf);
+            String readBack = FileManager.readFile(testFile);
+            assertEqual("读回内容换行为\\n", readBack, "<a,b>\n<c,d>\n");
+            testFile.delete();
+        });
+
         // 结果汇总
         System.out.println("\n========================================");
         System.out.println("  测试结果汇总：通过 " + passed + "，失败 " + failed);
@@ -152,6 +172,8 @@ public class TestFileManager {
     }
 
     private static void test(String name, TestAction action) {
+        // 每个测试前重置静态变量，避免测试用例之间互相污染
+        FileManager.resetLastOpenedPathForTest();
         try {
             action.run();
             System.out.println("  [PASS] " + name);
