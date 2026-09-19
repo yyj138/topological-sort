@@ -21,10 +21,11 @@ import java.util.Map;
 
 /**
  * 关系图绘制组件（组员 C）
- * - 环形静态布局：所有顶点均匀分布在一个圆周上
- * - 支持高亮环路径（红）、高亮选中拓扑序（绿）
+ * - 圆角矩形节点 + 宽度自适应
+ * - 环形静态布局（含环图兜底）
+ * - 支持高亮环路径（红）、高亮选中拓扑序（绿）、高亮选中节点（黄）
  * - 支持导出 PNG（中文不乱码）
- * - 双击节点显示入度/出度/后继课程信息
+ * - 双击节点显示入度/出度/先修/后继课程信息
  * 接口对齐 MainController：setGraph / setHighlightedCycle / setSelectedOrder / exportPNG
  */
 public class GraphPanel extends JPanel {
@@ -36,6 +37,8 @@ public class GraphPanel extends JPanel {
     private static final Color CYCLE_BORDER = new Color(214, 48, 49);
     private static final Color ORDER_FILL   = new Color(225, 255, 225);
     private static final Color ORDER_BORDER = new Color(39, 174, 96);
+    private static final Color SELECT_FILL  = new Color(255, 249, 196);
+    private static final Color SELECT_BORDER= new Color(243, 156, 18);
     private static final Color EDGE_COLOR   = new Color(140, 140, 140);
     private static final Color CYCLE_EDGE   = new Color(214, 48, 49);
     private static final Color TEXT_COLOR   = new Color(33, 33, 33);
@@ -45,6 +48,7 @@ public class GraphPanel extends JPanel {
     private Graph graph;
     private List<String> highlightedCycle = new ArrayList<>();
     private List<String> selectedOrder    = new ArrayList<>();
+    private String selectedNode = null; // 选中的单个节点（高亮黄色）
 
     private final Map<String, Point2D.Double> nodePositions = new LinkedHashMap<>();
 
@@ -65,13 +69,14 @@ public class GraphPanel extends JPanel {
     }
 
     // ============================================================
-    // ============== MainController 对接的四个公共方法 ==========
+    // ============== MainController 对接的公共方法 ================
     // ============================================================
 
     public void setGraph(Graph graph) {
         this.graph = graph;
         this.highlightedCycle = new ArrayList<>();
         this.selectedOrder = new ArrayList<>();
+        this.selectedNode = null;
         this.nodePositions.clear();
         repaint();
     }
@@ -83,6 +88,11 @@ public class GraphPanel extends JPanel {
 
     public void setSelectedOrder(List<String> order) {
         this.selectedOrder = (order != null) ? new ArrayList<>(order) : new ArrayList<>();
+        repaint();
+    }
+
+    public void setSelectedNode(String nodeName) {
+        this.selectedNode = nodeName;
         repaint();
     }
 
@@ -204,10 +214,12 @@ public class GraphPanel extends JPanel {
         double ux = dx / len;
         double uy = dy / len;
 
-        double sx = from.x + ux * NODE_RADIUS;
-        double sy = from.y + uy * NODE_RADIUS;
-        double ex = to.x   - ux * NODE_RADIUS;
-        double ey = to.y   - uy * NODE_RADIUS;
+        // 箭头起点和终点，向外多延伸一点，避免被圆角矩形挡住
+        double offset = NODE_RADIUS + 4;
+        double sx = from.x + ux * offset;
+        double sy = from.y + uy * offset;
+        double ex = to.x   - ux * offset;
+        double ey = to.y   - uy * offset;
 
         g2.draw(new Line2D.Double(sx, sy, ex, ey));
 
@@ -267,31 +279,32 @@ public class GraphPanel extends JPanel {
             if (selectedOrder.contains(name)) {
                 fill = ORDER_FILL; border = ORDER_BORDER; stroke = 3;
             }
+            if (name.equals(selectedNode)) {
+                fill = SELECT_FILL; border = SELECT_BORDER; stroke = 4;
+            }
 
-            int x = (int) Math.round(p.x - NODE_RADIUS);
-            int y = (int) Math.round(p.y - NODE_RADIUS);
-            int d = NODE_RADIUS * 2;
+            // 宽度自适应：根据文字长度动态计算宽度
+            int textWidth = fm.stringWidth(name);
+            int minWidth = NODE_RADIUS * 2;
+            int dWidth = Math.max(minWidth, textWidth + 24);
+            int dHeight = NODE_RADIUS * 2;
+
+            int x = (int) Math.round(p.x - dWidth / 2.0);
+            int y = (int) Math.round(p.y - dHeight / 2.0);
+            int arc = 14; // 圆角半径
 
             g2.setColor(fill);
-            g2.fillOval(x, y, d, d);
+            g2.fillRoundRect(x, y, dWidth, dHeight, arc, arc);
 
             g2.setColor(border);
             g2.setStroke(new BasicStroke(stroke));
-            g2.drawOval(x, y, d, d);
+            g2.drawRoundRect(x, y, dWidth, dHeight, arc, arc);
 
             g2.setColor(TEXT_COLOR);
-            int maxW = d - 6;
-            if (fm.stringWidth(name) > maxW) {
-                g2.setFont(font.deriveFont((float) Math.max(9, font.getSize() - 2)));
-                fm = g2.getFontMetrics();
-            }
             int tw = fm.stringWidth(name);
             int tx = (int) Math.round(p.x) - tw / 2;
             int ty = (int) Math.round(p.y) + fm.getAscent() / 2 - 2;
             g2.drawString(name, tx, ty);
-
-            g2.setFont(font);
-            fm = g2.getFontMetrics();
         }
     }
 
@@ -317,12 +330,13 @@ public class GraphPanel extends JPanel {
     private void showNodeInfo(int mouseX, int mouseY) {
         if (graph == null || nodePositions.isEmpty()) return;
 
-        // 找到被双击的节点
         String hit = null;
         for (Map.Entry<String, Point2D.Double> entry : nodePositions.entrySet()) {
             Point2D.Double p = entry.getValue();
-            double dist = Math.hypot(mouseX - p.x, mouseY - p.y);
-            if (dist <= NODE_RADIUS) {
+            // 因为矩形宽度可能比高度宽，适当放宽 X 轴判断
+            double distX = Math.abs(mouseX - p.x);
+            double distY = Math.abs(mouseY - p.y);
+            if (distX <= NODE_RADIUS + 15 && distY <= NODE_RADIUS) {
                 hit = entry.getKey();
                 break;
             }
@@ -333,16 +347,22 @@ public class GraphPanel extends JPanel {
         int outDeg = graph.getOutDegree(hit);
         List<String> succ = graph.getSuccessors(hit);
 
+        // 自己算出先修课程（因为 A 的 Graph 类还没有 getPredecessors）
+        List<String> preds = new ArrayList<>();
+        for (String other : graph.getVertexNames()) {
+            if (graph.getSuccessors(other).contains(hit)) {
+                preds.add(other);
+            }
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append("课程：").append(hit).append("\n");
         sb.append("入度（先修数）：").append(inDeg).append("\n");
         sb.append("出度（后继数）：").append(outDeg).append("\n");
+        sb.append("先修课程：");
+        sb.append(preds.isEmpty() ? "无" : String.join("、", preds)).append("\n");
         sb.append("后继课程：");
-        if (succ.isEmpty()) {
-            sb.append("无");
-        } else {
-            sb.append(String.join("、", succ));
-        }
+        sb.append(succ.isEmpty() ? "无" : String.join("、", succ));
 
         JOptionPane.showMessageDialog(this, sb.toString(),
                 "节点信息", JOptionPane.INFORMATION_MESSAGE);
@@ -366,6 +386,7 @@ public class GraphPanel extends JPanel {
         GraphPanel panel = new GraphPanel();
         panel.setGraph(g);
         panel.setSelectedOrder(Arrays.asList("MA140", "MA141", "CS150"));
+        panel.setSelectedNode("MA140"); // 测试选中高亮
 
         JFrame frame = new JFrame("GraphPanel 测试");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
