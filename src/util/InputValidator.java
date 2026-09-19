@@ -20,7 +20,7 @@ import java.util.Set;
  * <li>跳过空行和以 {@code #} 开头的注释行</li>
  * <li>容忍行首尾空格，兼容全角尖括号和全角逗号</li>
  * <li>名称允许内部空格（如 {@code MA 141}），区分大小写</li>
- * <li>名称不允许包含 {@code <}、{@code >}、{@code ,} 或换行符</li>
+ * <li>名称不允许包含 {@code <}、{@code >}、{@code ,}、换行符或 Unicode 行分隔符</li>
  * <li>重复关系作为警告提示，自环保留为合法关系</li>
  * </ul>
  */
@@ -77,7 +77,7 @@ public class InputValidator {
         List<io.ParseIssue> errors = new ArrayList<>();
         List<io.ParseIssue> warnings = new ArrayList<>();
 
-        if (input == null || input.trim().isEmpty()) {
+        if (input == null || input.strip().isEmpty()) {
             return new ValidationResult(true, errors, warnings);
         }
 
@@ -86,7 +86,7 @@ public class InputValidator {
 
         for (int i = 0; i < lines.length; i++) {
             int lineNumber = i + 1;
-            String line = lines[i].trim();
+            String line = lines[i].strip();
 
             // 跳过空行
             if (line.isEmpty()) {
@@ -134,35 +134,46 @@ public class InputValidator {
 
     /**
      * 从一行中提取并校验 {@code <from,to>} 的两个名称。
+     * <p>
+     * 错误消息与 DataParser.extractPair 完全一致。
+     * </p>
      *
      * @param line       已去除首尾空白并完成全角转换的行
      * @param lineNumber 行号（从 1 开始）
      * @param errors     错误列表
      * @return 成功时返回 [from, to]，失败返回 null
      */
+    // ⚠️【重要】本方法逻辑必须与 io.DataParser.extractPair 完全一致！
+    // 修改此处，必须同步修改 DataParser 的同名方法；
+    // 修改完成运行 TestDataParser + TestInputValidator。
     private static String[] extractPair(String line, int lineNumber,
             List<io.ParseIssue> errors) {
         int left = line.indexOf('<');
         int right = line.lastIndexOf('>');
 
-        if (left == -1 || right == -1 || left >= right) {
-            errors.add(new io.ParseIssue(lineNumber,
-                    "格式错误：缺少尖括号，无法识别为关系"));
+        if (left == -1) {
+            errors.add(new io.ParseIssue(lineNumber, "格式错误：缺少左括号 '<'"));
+            return null;
+        }
+        if (right == -1) {
+            errors.add(new io.ParseIssue(lineNumber, "格式错误：缺少右括号 '>'"));
+            return null;
+        }
+        if (left >= right) {
+            errors.add(new io.ParseIssue(lineNumber, "格式错误：尖括号顺序错误"));
             return null;
         }
 
         String content = line.substring(left + 1, right).trim();
 
         if (content.isEmpty()) {
-            errors.add(new io.ParseIssue(lineNumber,
-                    "格式错误：括号内为空"));
+            errors.add(new io.ParseIssue(lineNumber, "格式错误：括号内为空"));
             return null;
         }
 
         int comma = content.indexOf(',');
         if (comma == -1) {
-            errors.add(new io.ParseIssue(lineNumber,
-                    "格式错误：缺少逗号分隔符"));
+            errors.add(new io.ParseIssue(lineNumber, "格式错误：缺少逗号分隔符"));
             return null;
         }
 
@@ -170,24 +181,19 @@ public class InputValidator {
         String to = content.substring(comma + 1).trim();
 
         if (from.isEmpty()) {
-            errors.add(new io.ParseIssue(lineNumber,
-                    "格式错误：起点名称为空"));
+            errors.add(new io.ParseIssue(lineNumber, "格式错误：起点名称为空"));
+            return null;
+        }
+        if (to.isEmpty()) {
+            errors.add(new io.ParseIssue(lineNumber, "格式错误：终点名称为空"));
             return null;
         }
         if (containsFormatDelimiter(from)) {
-            errors.add(new io.ParseIssue(lineNumber,
-                    "起点名称包含非法字符：" + from));
-            return null;
-        }
-
-        if (to.isEmpty()) {
-            errors.add(new io.ParseIssue(lineNumber,
-                    "格式错误：终点名称为空"));
+            errors.add(new io.ParseIssue(lineNumber, "起点名称包含非法字符：" + from));
             return null;
         }
         if (containsFormatDelimiter(to)) {
-            errors.add(new io.ParseIssue(lineNumber,
-                    "终点名称包含非法字符：" + to));
+            errors.add(new io.ParseIssue(lineNumber, "终点名称包含非法字符：" + to));
             return null;
         }
 
@@ -195,15 +201,20 @@ public class InputValidator {
     }
 
     /**
-     * 检查名称中是否包含格式分隔符（{@code <}、{@code >}、{@code ,}）或换行符。
+     * 检查名称中是否包含格式分隔符（{@code <}、{@code >}、{@code ,}）、
+     * 换行符（{@code \n}、{@code \r}）或 Unicode 行分隔符
+     * （{@code \u0085}、{@code \u2028}、{@code \u2029}）。
      * <p>
      * 与 DataParser.containsFormatDelimiter 规则完全一致。
+     * 规则与 {@link model.Vertex#normalizeName(String)} 保持一致。
      * </p>
      */
     private static boolean containsFormatDelimiter(String name) {
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
-            if (c == '<' || c == '>' || c == ',' || c == '\n' || c == '\r') {
+            if (c == '<' || c == '>' || c == ','
+                    || c == '\n' || c == '\r'
+                    || c == '\u0085' || c == '\u2028' || c == '\u2029') {
                 return true;
             }
         }

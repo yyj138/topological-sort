@@ -2,9 +2,7 @@ package io;
 
 import model.Graph;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 解析 {@code <from,to>} 格式的文本，直接通过 Graph 方法建立图。
@@ -14,7 +12,7 @@ import java.util.Set;
  * <li>跳过空行和以 {@code #} 开头的注释行</li>
  * <li>容忍行首尾空格，兼容全角尖括号和全角逗号</li>
  * <li>自动去除重复边并记录警告</li>
- * <li>自环保留在图中，由环检测模块统一提示</li>
+ * <li>识别到自环边并保留入图；环路路径识别由 CycleDetector 模块完成</li>
  * <li>解析失败记录行号与原因，返回结构化错误列表</li>
  * </ul>
  * </p>
@@ -38,18 +36,15 @@ public class DataParser {
         List<ParseIssue> errors = new ArrayList<>();
         List<ParseIssue> warnings = new ArrayList<>();
 
-        if (text == null || text.trim().isEmpty()) {
+        if (text == null || text.strip().isEmpty()) {
             return new ParseResult(graph, errors, warnings);
         }
-
-        // 用于在同一份输入内检测重复关系
-        Set<String> seenEdges = new HashSet<>();
 
         String[] lines = text.split("\\r?\\n");
 
         for (int i = 0; i < lines.length; i++) {
             int lineNumber = i + 1;
-            String line = lines[i].trim();
+            String line = lines[i].strip();
 
             // 跳过空行
             if (line.isEmpty()) {
@@ -74,18 +69,20 @@ public class DataParser {
             String from = pair[0];
             String to = pair[1];
 
-            // 检查本份输入内是否已出现相同关系
-            String edgeKey = from + "\t" + to;
-            if (seenEdges.contains(edgeKey)) {
-                warnings.add(new ParseIssue(lineNumber,
-                        "重复的关系 <" + from + "," + to + ">，已忽略"));
-                continue;
-            }
-            seenEdges.add(edgeKey);
-
             // 通过 Graph.addEdge 建立关系，自动补齐缺失端点
             // 自环（from.equals(to)）按正常边处理，由环检测模块提示
-            graph.addEdge(from, to);
+            // addEdge 返回 false 表示重复边，不重复增加入度
+            // try-catch 兜底：即使 containsFormatDelimiter 漏检，也不让 parse 抛异常
+            try {
+                boolean added = graph.addEdge(from, to);
+                if (!added) {
+                    warnings.add(new ParseIssue(lineNumber,
+                            "重复的关系 <" + from + "," + to + ">，已忽略"));
+                }
+            } catch (IllegalArgumentException e) {
+                errors.add(new ParseIssue(lineNumber,
+                        "名称不符合图结构规则：" + e.getMessage()));
+            }
         }
 
         return new ParseResult(graph, errors, warnings);
@@ -111,52 +108,57 @@ public class DataParser {
      * @param errors     错误列表，解析失败时向此列表追加
      * @return 成功时返回 [from, to]，失败返回 null
      */
+
+    // ⚠️【重要】本方法逻辑必须与 util.InputValidator.extractPair 完全一致！
+    // 修改此处，必须同步修改 InputValidator 的同名方法；
+    // 修改完成运行 TestDataParser + TestInputValidator。
     private String[] extractPair(String line, int lineNumber, List<ParseIssue> errors) {
-        // 查找尖括号
         int left = line.indexOf('<');
         int right = line.lastIndexOf('>');
 
-        if (left == -1 || right == -1 || left >= right) {
-            errors.add(new ParseIssue(lineNumber,
-                    "格式错误：缺少尖括号，无法识别为关系"));
+        if (left == -1) {
+            errors.add(new ParseIssue(lineNumber, "格式错误：缺少左括号 '<'"));
+            return null;
+        }
+        if (right == -1) {
+            errors.add(new ParseIssue(lineNumber, "格式错误：缺少右括号 '>'"));
+            return null;
+        }
+        if (left >= right) {
+            errors.add(new ParseIssue(lineNumber, "格式错误：尖括号顺序错误"));
             return null;
         }
 
-        // 提取尖括号内的内容
         String content = line.substring(left + 1, right).trim();
 
-        // 查找逗号
+        if (content.isEmpty()) {
+            errors.add(new ParseIssue(lineNumber, "格式错误：括号内为空"));
+            return null;
+        }
+
         int comma = content.indexOf(',');
         if (comma == -1) {
-            errors.add(new ParseIssue(lineNumber,
-                    "格式错误：缺少逗号分隔符"));
+            errors.add(new ParseIssue(lineNumber, "格式错误：缺少逗号分隔符"));
             return null;
         }
 
         String from = content.substring(0, comma).trim();
         String to = content.substring(comma + 1).trim();
 
-        // 校验起点名称
         if (from.isEmpty()) {
-            errors.add(new ParseIssue(lineNumber,
-                    "格式错误：起点名称为空"));
+            errors.add(new ParseIssue(lineNumber, "格式错误：起点名称为空"));
+            return null;
+        }
+        if (to.isEmpty()) {
+            errors.add(new ParseIssue(lineNumber, "格式错误：终点名称为空"));
             return null;
         }
         if (containsFormatDelimiter(from)) {
-            errors.add(new ParseIssue(lineNumber,
-                    "起点名称包含非法字符：" + from));
-            return null;
-        }
-
-        // 校验终点名称
-        if (to.isEmpty()) {
-            errors.add(new ParseIssue(lineNumber,
-                    "格式错误：终点名称为空"));
+            errors.add(new ParseIssue(lineNumber, "起点名称包含非法字符：" + from));
             return null;
         }
         if (containsFormatDelimiter(to)) {
-            errors.add(new ParseIssue(lineNumber,
-                    "终点名称包含非法字符：" + to));
+            errors.add(new ParseIssue(lineNumber, "终点名称包含非法字符：" + to));
             return null;
         }
 
@@ -164,15 +166,20 @@ public class DataParser {
     }
 
     /**
-     * 检查名称中是否包含格式分隔符（{@code <}、{@code >}、{@code ,}）或换行符。
+     * 检查名称中是否包含格式分隔符（{@code <}、{@code >}、{@code ,}）、
+     * 换行符（{@code \n}、{@code \r}）或 Unicode 行分隔符
+     * （{@code \u0085}、{@code \u2028}、{@code \u2029}）。
      * <p>
      * 接口契约规定：格式分隔符、换行和空名称不作为合法名称。
+     * 规则与 {@link model.Vertex#normalizeName(String)} 保持一致。
      * </p>
      */
     private boolean containsFormatDelimiter(String name) {
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
-            if (c == '<' || c == '>' || c == ',' || c == '\n' || c == '\r') {
+            if (c == '<' || c == '>' || c == ','
+                    || c == '\n' || c == '\r'
+                    || c == '\u0085' || c == '\u2028' || c == '\u2029') {
                 return true;
             }
         }

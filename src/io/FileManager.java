@@ -48,6 +48,10 @@ public class FileManager {
 
     /**
      * 将文本内容保存到文件。
+     * <p>
+     * 保存前统一做全角转半角归一化，换行统一使用 {@code \n}。
+     * 全角转换规则与 {@link DataParser}、{@link util.InputValidator} 保持一致。
+     * </p>
      *
      * @param file    目标文件
      * @param content 要保存的文本内容
@@ -60,6 +64,22 @@ public class FileManager {
         if (content == null) {
             content = "";
         }
+
+        // 归一化：全角转半角，统一 \n 换行
+        // 全角转换规则与 DataParser/InputValidator 保持一致
+        String[] lines = content.split("\\r\\n|\\r|\\n", -1);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            String l = lines[i]
+                    .replace('＜', '<')
+                    .replace('＞', '>')
+                    .replace('，', ',');
+            sb.append(l);
+            if (i != lines.length - 1) {
+                sb.append("\n");
+            }
+        }
+        content = sb.toString();
 
         // 确保父目录存在
         File parent = file.getParentFile();
@@ -143,9 +163,9 @@ public class FileManager {
 
             for (int i = 0; i < results.size(); i++) {
                 String sequence = results.get(i);
-                // csv 中如果顶点名包含逗号，需要加引号包裹
-                if (sequence.contains(",")) {
-                    bw.write((i + 1) + ",\"" + sequence + "\"");
+                // csv 中如果顶点名包含逗号或双引号，需要加引号包裹并转义内部双引号
+                if (sequence.contains(",") || sequence.contains("\"")) {
+                    bw.write((i + 1) + ",\"" + sequence.replace("\"", "\"\"") + "\"");
                 } else {
                     bw.write((i + 1) + "," + sequence);
                 }
@@ -177,5 +197,16 @@ public class FileManager {
         File file = new File(lastOpenedPath);
         File parent = file.getParentFile();
         return parent != null ? parent.getAbsolutePath() : null;
+    }
+
+    /**
+     * 仅供单元测试使用，生产业务代码禁止调用。
+     * <p>
+     * 重置最近打开路径记录，避免测试用例之间互相污染。
+     * 如果 TestFileManager 不在 io 包，请修改为 public static。
+     * </p>
+     */
+    public static void resetLastOpenedPathForTest() {
+        lastOpenedPath = null;
     }
 }
