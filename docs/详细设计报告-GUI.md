@@ -195,10 +195,10 @@ sequenceDiagram
 6. **直接取图**：`Graph graph = parsed.getGraph();` ——B 不再调 `Graph.addEdge`，建图职责完全由 D 在解析器内部完成（契约 §6 + 图设计 §一）；
 7. 若 `graph.getVertexCount()==0 && graph.getEdgeCount()==0`，按契约 §6 "整份输入没有有效节点和关系" 由输入层提示，警告并中止；
 8. `graphPanel.setGraph(graph)` 先把图交给画布布局；
-9. `CycleDetector.findCycle(graph)` 返回闭合路径列表；空列表表示无环；自环返回 `[X,X]`，两节点互指返回 `[A,B,A]`；
+9. `new CycleDetector().findCycle(graph)` 返回闭合路径列表；空列表表示无环；自环返回 `[X,X]`，两节点互指返回 `[A,B,A]`；
 10. 有环：画布 `setHighlightedCycle` 标红、结果列表清空、状态栏按含环更新，弹窗显示环路径后结束；
 11. 无环：setBusy 切换按钮状态，启动内部类 EnumerationWorker（继承 SwingWorker）；
-12. 后台执行 `AllTopoSorts.enumerate(graph, 10000, 30000, 取消谓词)`，结果上限 10000 条、超时 30 秒；
+12. 后台执行 `new AllTopoSorts().enumerate(graph, 10000, 30000, 取消谓词)`，结果上限 10000 条、超时 30 秒；
 13. done() 回到 EDT：填充 ResultPanel、画布高亮首条序列、状态栏更新统计；
 14. 状态栏提示按 StopReason 区分：COMPLETED"枚举完成，共 N 条"、LIMIT_REACHED"达到结果上限"、TIMEOUT"超时停止"、CANCELLED"已取消，已显示部分序列"。
 
@@ -352,8 +352,8 @@ public static void handle(Component parent, Throwable t);
 |---|---|---|---|---|
 | MainController / InputPanel | io.DataParser | parse(String)（实例方法） | io.ParseResult | 计算前解析、文本→表格同步 |
 | MainController | io.ParseResult | getGraph() / getErrors() / getWarnings() | model.Graph / List<ParseIssue> / List<ParseIssue> | 校验与取图 |
-| MainController | algorithm.CycleDetector | static findCycle(Graph) | List<String>（空=无环，闭合=有环） | 取图后判环 |
-| EnumerationWorker | algorithm.AllTopoSorts | static enumerate(Graph,int,long,BooleanSupplier) | EnumerationResult | 无环时后台枚举 |
+| MainController | algorithm.CycleDetector | 实例方法 findCycle(Graph)（new CycleDetector() 后调用） | List<String>（空=无环，闭合=有环） | 取图后判环 |
+| EnumerationWorker | algorithm.AllTopoSorts | 实例方法 enumerate(Graph,int,long,BooleanSupplier)（new AllTopoSorts() 后调用） | EnumerationResult | 无环时后台枚举 |
 | MainController | EnumerationResult | getSequences() / getGeneratedCount() / isComplete() / getStopReason() | — | 回填 UI 与提示 |
 | MainController / InputPanel | io.FileManager | readFile / saveFile / exportTxt / exportCsv（均 static，File 参数，抛 IOException） | — | 文件读写与结果导出 |
 | MainController | view.GraphPanel | setGraph / setHighlightedCycle / setSelectedOrder / exportPNG | void | 画布刷新与导出 |
@@ -386,9 +386,9 @@ flowchart TD
     F --> G{"graph.vertexCount==0<br/>and edgeCount==0？"}
     G -->|是| H["警告：没有有效数据<br/>中止流程"]
     G -->|否| I["parsed.getGraph()<br/>B 不调 Graph.addEdge"]
-    I -->|model.Graph| J["CycleDetector.findCycle"]
+    I -->|model.Graph| J["new CycleDetector().findCycle"]
     J -->|含环（含自环 / 互指 / 长环）| K["环路径红色高亮 + 警告弹窗<br/>resultPanel 清空 / 状态栏含环"]
-    J -->|空列表（无环）| L["EnumerationWorker（后台线程）<br/>AllTopoSorts.enumerate<br/>上限 10000 / 超时 30s / 可取消"]
+    J -->|空列表（无环）| L["EnumerationWorker（后台线程）<br/>new AllTopoSorts().enumerate<br/>上限 10000 / 超时 30s / 可取消"]
     L -->|io.EnumerationResult| M["ResultPanel.setResults + GraphPanel 首条序列高亮<br/>StatusBar.updateStats + 按 StopReason 提示"]
     M --> N["可导出 PNG / TXT / CSV"]
 ```
