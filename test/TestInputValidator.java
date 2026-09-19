@@ -238,6 +238,14 @@ public class TestInputValidator {
                             "格式错误：起点名称为空");
                 });
 
+        test("制表符不同端点不误判重复",
+                "<A\tB,C>\n<A,B\tC>",
+                result -> {
+                    assertTrue("应通过校验", result.isValid());
+                    assertEqual("错误数", result.getErrors().size(), 0);
+                    assertEqual("警告数", result.getWarnings().size(), 0);
+                });
+
         test("括号内为空",
                 "<>",
                 result -> {

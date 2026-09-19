@@ -229,6 +229,15 @@ public class TestDataParser {
                                                         "格式错误：起点名称为空");
                                 });
 
+                test("制表符不同端点不误判重复",
+                                "<A\tB,C>\n<A,B\tC>",
+                                result -> {
+                                        assertEqual("节点数", result.getGraph().getVertexCount(), 4);
+                                        assertEqual("边数", result.getGraph().getEdgeCount(), 2);
+                                        assertEqual("错误数", result.getErrors().size(), 0);
+                                        assertEqual("警告数", result.getWarnings().size(), 0);
+                                });
+
                 test("完全乱码行",
                                 "qwertyuiop",
                                 result -> {

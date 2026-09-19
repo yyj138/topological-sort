@@ -23,6 +23,7 @@ import java.util.Set;
  * <li>名称首尾空白使用 {@code String.strip()} 清理，与 A 的 Vertex.normalizeName 保持一致</li>
  * <li>名称不允许包含 {@code <}、{@code >}、{@code ,}、换行符或 Unicode 行分隔符</li>
  * <li>重复关系作为警告提示，自环保留为合法关系</li>
+ * <li>重复判断使用 (from, to) 二元组作为键，避免名称内部含 {@code \t} 时误判</li>
  * </ul>
  */
 public class InputValidator {
@@ -82,7 +83,8 @@ public class InputValidator {
             return new ValidationResult(true, errors, warnings);
         }
 
-        Set<String> seenEdges = new HashSet<>();
+        // 使用 (from, to) 二元组作为重复键，避免 from/to 内部含 \t 时拼接碰撞
+        Set<List<String>> seenEdges = new HashSet<>();
         String[] lines = input.split("\\r?\\n");
 
         for (int i = 0; i < lines.length; i++) {
@@ -107,8 +109,8 @@ public class InputValidator {
             String from = pair[0];
             String to = pair[1];
 
-            // 使用已 strip 的名称判断重复，和 DataParser 的 Graph.addEdge 对齐
-            String edgeKey = from + "\t" + to;
+            // 使用不可变二元组作为重复键，基于元素内容比较，不会因名称内部含 \t 而碰撞
+            List<String> edgeKey = List.of(from, to);
             if (seenEdges.contains(edgeKey)) {
                 warnings.add(new io.ParseIssue(lineNumber,
                         "重复的关系 <" + from + "," + to + ">，已忽略"));
