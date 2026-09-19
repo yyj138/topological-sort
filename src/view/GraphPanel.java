@@ -5,6 +5,8 @@ import model.Graph;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Arc2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -22,6 +24,7 @@ import java.util.Map;
  * - 环形静态布局：所有顶点均匀分布在一个圆周上
  * - 支持高亮环路径（红）、高亮选中拓扑序（绿）
  * - 支持导出 PNG（中文不乱码）
+ * - 双击节点显示入度/出度/后继课程信息
  * 接口对齐 MainController：setGraph / setHighlightedCycle / setSelectedOrder / exportPNG
  */
 public class GraphPanel extends JPanel {
@@ -49,7 +52,21 @@ public class GraphPanel extends JPanel {
         setBackground(Color.WHITE);
         setPreferredSize(new Dimension(800, 600));
         setFont(new Font(FONT_NAME, Font.PLAIN, 13));
+
+        // 双击节点显示详细信息
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    showNodeInfo(e.getX(), e.getY());
+                }
+            }
+        });
     }
+
+    // ============================================================
+    // ============== MainController 对接的四个公共方法 ==========
+    // ============================================================
 
     public void setGraph(Graph graph) {
         this.graph = graph;
@@ -87,6 +104,10 @@ public class GraphPanel extends JPanel {
         ImageIO.write(img, "png", file);
     }
 
+    // ============================================================
+    // ======================= 绘制入口 ==========================
+    // ============================================================
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -115,6 +136,10 @@ public class GraphPanel extends JPanel {
         drawNodes(g2);
     }
 
+    // ============================================================
+    // ====================== 布局计算 ===========================
+    // ============================================================
+
     private void recomputeLayout(int w, int h) {
         nodePositions.clear();
         List<String> names = graph.getVertexNames();
@@ -134,6 +159,10 @@ public class GraphPanel extends JPanel {
         }
     }
 
+    // ============================================================
+    // ====================== 绘制边 =============================
+    // ============================================================
+
     private void drawEdges(Graphics2D g2) {
         List<String> names = graph.getVertexNames();
         for (String from : names) {
@@ -152,7 +181,8 @@ public class GraphPanel extends JPanel {
                 boolean inCycle  = isEdgeInCycle(from, to);
 
                 g2.setColor(inCycle ? CYCLE_EDGE : EDGE_COLOR);
-                g2.setStroke(new BasicStroke(inCycle ? 2.5f : 1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.setStroke(new BasicStroke(inCycle ? 2.5f : 1.4f,
+                        BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
                 if (selfLoop) {
                     drawSelfLoop(g2, p1);
@@ -187,7 +217,8 @@ public class GraphPanel extends JPanel {
         int y1 = (int) Math.round(ey - arrowLen * Math.sin(angle - Math.PI / 7));
         int x2 = (int) Math.round(ex - arrowLen * Math.cos(angle + Math.PI / 7));
         int y2 = (int) Math.round(ey - arrowLen * Math.sin(angle + Math.PI / 7));
-        g2.fillPolygon(new int[]{(int) Math.round(ex), x1, x2}, new int[]{(int) Math.round(ey), y1, y2}, 3);
+        g2.fillPolygon(new int[]{(int) Math.round(ex), x1, x2},
+                new int[]{(int) Math.round(ey), y1, y2}, 3);
     }
 
     private void drawSelfLoop(Graphics2D g2, Point2D.Double center) {
@@ -195,7 +226,8 @@ public class GraphPanel extends JPanel {
         double cx = center.x;
         double cy = center.y - NODE_RADIUS - 14;
 
-        Arc2D arc = new Arc2D.Double(cx - r, cy - r, r * 2, r * 2, 45, 270, Arc2D.OPEN);
+        Arc2D arc = new Arc2D.Double(cx - r, cy - r, r * 2, r * 2,
+                45, 270, Arc2D.OPEN);
         g2.draw(arc);
 
         double endAngle = Math.toRadians(45);
@@ -207,8 +239,13 @@ public class GraphPanel extends JPanel {
         int y1 = (int) Math.round(ey - arrowLen * Math.sin(tangent - Math.PI / 6));
         int x2 = (int) Math.round(ex - arrowLen * Math.cos(tangent + Math.PI / 6));
         int y2 = (int) Math.round(ey - arrowLen * Math.sin(tangent + Math.PI / 6));
-        g2.fillPolygon(new int[]{(int) Math.round(ex), x1, x2}, new int[]{(int) Math.round(ey), y1, y2}, 3);
+        g2.fillPolygon(new int[]{(int) Math.round(ex), x1, x2},
+                new int[]{(int) Math.round(ey), y1, y2}, 3);
     }
+
+    // ============================================================
+    // ====================== 绘制节点 ===========================
+    // ============================================================
 
     private void drawNodes(Graphics2D g2) {
         Font font = getFont();
@@ -258,6 +295,10 @@ public class GraphPanel extends JPanel {
         }
     }
 
+    // ============================================================
+    // =================== 环高亮的边判断 =========================
+    // ============================================================
+
     private boolean isEdgeInCycle(String from, String to) {
         if (highlightedCycle == null || highlightedCycle.size() < 2) return false;
         int n = highlightedCycle.size();
@@ -268,6 +309,48 @@ public class GraphPanel extends JPanel {
         }
         return false;
     }
+
+    // ============================================================
+    // ================= 双击节点显示信息 =========================
+    // ============================================================
+
+    private void showNodeInfo(int mouseX, int mouseY) {
+        if (graph == null || nodePositions.isEmpty()) return;
+
+        // 找到被双击的节点
+        String hit = null;
+        for (Map.Entry<String, Point2D.Double> entry : nodePositions.entrySet()) {
+            Point2D.Double p = entry.getValue();
+            double dist = Math.hypot(mouseX - p.x, mouseY - p.y);
+            if (dist <= NODE_RADIUS) {
+                hit = entry.getKey();
+                break;
+            }
+        }
+        if (hit == null) return;
+
+        int inDeg  = graph.getInDegree(hit);
+        int outDeg = graph.getOutDegree(hit);
+        List<String> succ = graph.getSuccessors(hit);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("课程：").append(hit).append("\n");
+        sb.append("入度（先修数）：").append(inDeg).append("\n");
+        sb.append("出度（后继数）：").append(outDeg).append("\n");
+        sb.append("后继课程：");
+        if (succ.isEmpty()) {
+            sb.append("无");
+        } else {
+            sb.append(String.join("、", succ));
+        }
+
+        JOptionPane.showMessageDialog(this, sb.toString(),
+                "节点信息", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    // ============================================================
+    // ======================== 测试入口 =========================
+    // ============================================================
 
     public static void main(String[] args) {
         Graph g = new Graph();
