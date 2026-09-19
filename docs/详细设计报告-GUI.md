@@ -44,29 +44,27 @@
 
 ```mermaid
 flowchart TB
-    subgraph MainFrame
-        direction TB
-        MenuBar["菜单栏<br/>文件(F)  编辑(E)  计算(C)  帮助(H)"]
-        ToolBar["工具栏<br/>[打开] [保存] | [计算] [取消计算] | [导出图片] [导出结果]"]
-        subgraph Content["内容区（左右分割）"]
-            direction LR
-            subgraph Left["左栏 InputPanel"]
-                direction TB
-                Lbtns["[载入文件][保存数据] [文本→表格][表格→文本]<br/>[+增行][-删行][清空]"]
-                TextArea["文本编辑区<br/># 请按 &lt;a,b&gt; 格式输入...<br/>&lt;MA 140,MA 141&gt;"]
-                TableView["表格编辑视图<br/>起点 | 终点<br/>MA 140 | MA 141"]
-                Lbtns --> TextArea --> TableView
-            end
-            subgraph Right["右栏"]
-                direction TB
-                GraphView["关系图视图 GraphPanel<br/>环形布局，有向箭头<br/>环路径红色高亮"]
-                ResultView["拓扑排序结果列表 ResultPanel<br/>1. MA 140 -> MA 141 -> ...<br/>共 N 条 | 1/K 页 [首页][上][下]<br/>[复制当前][清空]"]
-                GraphView --> ResultView
-            end
+    MenuBar["菜单栏<br/>文件(F)  编辑(E)  计算(C)  帮助(H)"]
+    ToolBar["工具栏<br/>[打开] [保存] | [计算] [取消计算] | [导出图片] [导出结果]"]
+    subgraph Content["内容区（左右分割）"]
+        direction LR
+        subgraph Left["左栏 InputPanel"]
+            direction TB
+            Lbtns["按钮区<br/>[载入文件][保存数据] [文本→表格][表格→文本]<br/>[+增行][-删行][清空]"]
+            TextArea["文本编辑区<br/># 请按 &lt;a,b&gt; 格式...<br/>&lt;MA 140,MA 141&gt;"]
+            TableView["表格编辑视图<br/>起点 | 终点<br/>MA 140 | MA 141"]
+            Lbtns --> TextArea --> TableView
         end
-        StatusBar["状态栏 StatusBar<br/>节点:3 | 边数:2 | 无环 | 序列数:1 | 耗时:6ms    枚举完成..."]
-        MenuBar --> ToolBar --> Content --> StatusBar
+        subgraph Right["右栏"]
+            direction TB
+            GraphView["关系图视图 GraphPanel<br/>环形布局，有向箭头<br/>环路径红色高亮"]
+            ResultView["拓扑排序结果列表 ResultPanel<br/>1. MA 140 -> MA 141 -> ...<br/>共 N 条 | 1/K 页 [首页][上][下]<br/>[复制当前][清空]"]
+            GraphView --> ResultView
+        end
+        Left ~~~ Right
     end
+    StatusBar["状态栏 StatusBar<br/>节点:3 | 边数:2 | 无环 | 序列数:1 | 耗时:6ms    枚举完成..."]
+    MenuBar --> ToolBar --> Content --> StatusBar
 ```
 
 文本区启动时的默认内容（均为 `#` 注释与示例边）：
