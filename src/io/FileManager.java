@@ -96,12 +96,36 @@ public class FileManager {
 
     /**
      * 导出拓扑排序结果为 txt 格式（UTF-8，每条序列一行）。
+     * <p>
+     * 本方法不写入结果完整性标记和停止原因，仅用于简单导出。
+     * 正式业务导出请使用带 {@code isComplete} 和 {@code stopReasonText}
+     * 的重载版本，以满足接口契约第七节要求。
+     * </p>
      *
      * @param file    目标文件
      * @param results 拓扑排序结果列表，每个元素是一条完整序列
      * @throws IOException 写入失败时抛出
      */
     public static void exportTxt(File file, List<String> results) throws IOException {
+        exportTxt(file, results, true, null);
+    }
+
+    /**
+     * 导出拓扑排序结果为 txt 格式（UTF-8，每条序列一行），
+     * 并在文件头写入结果完整性和停止原因。
+     * <p>
+     * 接口契约第七节要求：导出应同时写明结果是否完整和停止原因，
+     * 不能将截断结果标注为全部。
+     * </p>
+     *
+     * @param file           目标文件
+     * @param results        拓扑排序结果列表，每个元素是一条完整序列
+     * @param isComplete     结果是否完整（穷尽全部结果）
+     * @param stopReasonText 停止原因的中文描述，{@code isComplete} 为 true 时可为 null
+     * @throws IOException 写入失败时抛出
+     */
+    public static void exportTxt(File file, List<String> results,
+            boolean isComplete, String stopReasonText) throws IOException {
         if (file == null) {
             throw new IOException("未指定导出路径，请选择保存位置后再试");
         }
@@ -120,6 +144,12 @@ public class FileManager {
             bw.newLine();
             bw.write("# 共 " + results.size() + " 条序列");
             bw.newLine();
+            bw.write("# 是否完整：" + (isComplete ? "是" : "否"));
+            bw.newLine();
+            if (!isComplete && stopReasonText != null) {
+                bw.write("# 停止原因：" + stopReasonText);
+                bw.newLine();
+            }
             bw.newLine();
             for (int i = 0; i < results.size(); i++) {
                 bw.write("序列 " + (i + 1) + ": " + results.get(i));
@@ -131,13 +161,36 @@ public class FileManager {
 
     /**
      * 导出拓扑排序结果为 csv 格式（UTF-8 BOM，可被 Excel 正常打开）。
-     * 格式：每行一条序列，顶点用逗号分隔。
+     * <p>
+     * 本方法不写入结果完整性标记和停止原因，仅用于简单导出。
+     * 正式业务导出请使用带 {@code isComplete} 和 {@code stopReasonText}
+     * 的重载版本，以满足接口契约第七节要求。
+     * </p>
      *
      * @param file    目标文件
      * @param results 拓扑排序结果列表，每个元素是一条完整序列
      * @throws IOException 写入失败时抛出
      */
     public static void exportCsv(File file, List<String> results) throws IOException {
+        exportCsv(file, results, true, null);
+    }
+
+    /**
+     * 导出拓扑排序结果为 csv 格式（UTF-8 BOM，可被 Excel 正常打开），
+     * 并在文件头写入结果完整性和停止原因。
+     * <p>
+     * 接口契约第七节要求：导出应同时写明结果是否完整和停止原因，
+     * 不能将截断结果标注为全部。
+     * </p>
+     *
+     * @param file           目标文件
+     * @param results        拓扑排序结果列表，每个元素是一条完整序列
+     * @param isComplete     结果是否完整（穷尽全部结果）
+     * @param stopReasonText 停止原因的中文描述，{@code isComplete} 为 true 时可为 null
+     * @throws IOException 写入失败时抛出
+     */
+    public static void exportCsv(File file, List<String> results,
+            boolean isComplete, String stopReasonText) throws IOException {
         if (file == null) {
             throw new IOException("未指定导出路径，请选择保存位置后再试");
         }
@@ -156,6 +209,16 @@ public class FileManager {
 
             OutputStreamWriter osw = new OutputStreamWriter(bos, "UTF-8");
             BufferedWriter bw = new BufferedWriter(osw);
+
+            // 完整性注释行（csv 中用 # 开头，Excel 会当作普通文本）
+            bw.write("# 共 " + results.size() + " 条序列");
+            bw.newLine();
+            bw.write("# 是否完整：" + (isComplete ? "是" : "否"));
+            bw.newLine();
+            if (!isComplete && stopReasonText != null) {
+                bw.write("# 停止原因：" + stopReasonText);
+                bw.newLine();
+            }
 
             // 表头
             bw.write("序号,拓扑排序序列");
@@ -203,7 +266,7 @@ public class FileManager {
      * 仅供单元测试使用，生产业务代码禁止调用。
      * <p>
      * 重置最近打开路径记录，避免测试用例之间互相污染。
-     * 如果 TestFileManager 不在 io 包，请修改为 public static。
+     * 用 public 是为了让不在 io 包的 TestFileManager 也能调用。
      * </p>
      */
     public static void resetLastOpenedPathForTest() {

@@ -33,7 +33,7 @@ public class TestFileManager {
             testFile.delete();
         });
 
-        // 测试2：导出 txt 格式
+        // 测试2：导出 txt 格式（旧方法，不带完整性参数）
         test("导出txt格式", () -> {
             List<String> results = new ArrayList<>();
             results.add("MA 140 -> MA 141 -> CS 150 -> CS 155");
@@ -53,7 +53,7 @@ public class TestFileManager {
             txtFile.delete();
         });
 
-        // 测试3：导出 csv 格式
+        // 测试3：导出 csv 格式（旧方法，不带完整性参数）
         test("导出csv格式（含BOM）", () -> {
             List<String> results = new ArrayList<>();
             results.add("MA 140 -> MA 141 -> CS 150");
@@ -152,6 +152,83 @@ public class TestFileManager {
             testFile.delete();
         });
 
+        // 测试11：导出 txt 含完整性和停止原因（不完整）
+        test("导出txt含完整性和停止原因（不完整）", () -> {
+            List<String> results = new ArrayList<>();
+            results.add("MA 140 -> MA 141 -> CS 150");
+            results.add("MA 140 -> MA 141 -> CS 225");
+
+            File txtFile = new File("test_result_partial.txt");
+            FileManager.exportTxt(txtFile, results, false,
+                    "达到输出上限，仅显示前 1000 条");
+
+            String content = new String(Files.readAllBytes(txtFile.toPath()), StandardCharsets.UTF_8);
+            System.out.println("         → txt内容（不完整）:");
+            for (String line : content.split("\n")) {
+                System.out.println("           " + line);
+            }
+            assertTrue("含是否完整否", content.contains("# 是否完整：否"));
+            assertTrue("含停止原因", content.contains("# 停止原因：达到输出上限，仅显示前 1000 条"));
+            assertTrue("含序列数", content.contains("共 2 条序列"));
+            txtFile.delete();
+        });
+
+        // 测试12：导出 txt 含完整性和停止原因（完整）
+        test("导出txt含完整性和停止原因（完整）", () -> {
+            List<String> results = new ArrayList<>();
+            results.add("MA 140 -> MA 141 -> CS 150");
+
+            File txtFile = new File("test_result_complete.txt");
+            FileManager.exportTxt(txtFile, results, true, null);
+
+            String content = new String(Files.readAllBytes(txtFile.toPath()), StandardCharsets.UTF_8);
+            System.out.println("         → txt内容（完整）:");
+            for (String line : content.split("\n")) {
+                System.out.println("           " + line);
+            }
+            assertTrue("含是否完整是", content.contains("# 是否完整：是"));
+            assertFalse("不含停止原因", content.contains("# 停止原因："));
+            txtFile.delete();
+        });
+
+        // 测试13：导出 csv 含完整性和停止原因（不完整）
+        test("导出csv含完整性和停止原因（不完整）", () -> {
+            List<String> results = new ArrayList<>();
+            results.add("MA 140 -> MA 141 -> CS 150");
+
+            File csvFile = new File("test_result_partial.csv");
+            FileManager.exportCsv(csvFile, results, false, "用户取消");
+
+            String content = new String(Files.readAllBytes(csvFile.toPath()), StandardCharsets.UTF_8);
+            System.out.println("         → csv内容（不完整）:");
+            for (String line : content.split("\n")) {
+                System.out.println("           " + line);
+            }
+            assertTrue("含是否完整否", content.contains("# 是否完整：否"));
+            assertTrue("含停止原因", content.contains("# 停止原因：用户取消"));
+            assertTrue("含表头序号", content.contains("序号"));
+            assertTrue("含表头序列", content.contains("拓扑排序序列"));
+            csvFile.delete();
+        });
+
+        // 测试14：导出 csv 含完整性和停止原因（完整）
+        test("导出csv含完整性和停止原因（完整）", () -> {
+            List<String> results = new ArrayList<>();
+            results.add("MA 140 -> MA 141 -> CS 150");
+
+            File csvFile = new File("test_result_complete.csv");
+            FileManager.exportCsv(csvFile, results, true, null);
+
+            String content = new String(Files.readAllBytes(csvFile.toPath()), StandardCharsets.UTF_8);
+            System.out.println("         → csv内容（完整）:");
+            for (String line : content.split("\n")) {
+                System.out.println("           " + line);
+            }
+            assertTrue("含是否完整是", content.contains("# 是否完整：是"));
+            assertFalse("不含停止原因", content.contains("# 停止原因："));
+            csvFile.delete();
+        });
+
         // 结果汇总
         System.out.println("\n========================================");
         System.out.println("  测试结果汇总：通过 " + passed + "，失败 " + failed);
@@ -196,6 +273,12 @@ public class TestFileManager {
     private static void assertTrue(String label, boolean value) {
         if (!value) {
             throw new AssertionError(label + "：期望 true，实际 false");
+        }
+    }
+
+    private static void assertFalse(String label, boolean value) {
+        if (value) {
+            throw new AssertionError(label + "：期望 false，实际 true");
         }
     }
 
