@@ -1,20 +1,21 @@
-﻿# 拓扑排序应用软件（Topological Sort Application）
+# 拓扑排序应用软件（Topological Sort Application）
 
 ---
 
 ## 功能特性
 
-- 图形界面输入（文本粘贴 + 表格编辑），环形布局绘制关系图
-- Kahn 拓扑排序 + DFS 回溯枚举全部结果（默认上限 1000 条，可取消/超时）
-- 环检测并定位环路径，界面红色高亮；选中序列绿色高亮
-- 数据导入导出（txt/csv）、关系图导出 PNG
+- 图形界面输入（文本粘贴 + 表格编辑），实时绘制关系图
+- Kahn 拓扑排序 + DFS 回溯枚举全部结果（默认上限 1000 条，可切换全部）
+- 环检测并定位环路径（如 A→B→C→A），界面高亮
+- 数据导入导出（txt/csv）、关系图导出 PNG（中文不乱码）
+- 分层 / 环形布局切换，缩放、平移、拖拽
 - 异常容错：非法输入定位到行号，重复边去重，自环标记
 
 ## 技术栈
 
 | 项 | 选择 |
 |----|------|
-| 语言 | Java（目标 JDK 21，团队统一版本） |
+| 语言 | Java 8+（当前开发环境 JDK 21） |
 | GUI | Swing（JDK 自带，零外部依赖） |
 | 构建 | javac / IDE 直接编译 |
 | 数据 | 文本文件（.txt），统一 `<a,b>` 格式 |
@@ -23,22 +24,22 @@
 ## 核心算法
 
 1. **Kahn**：入度队列，O(V+E)，输出一种拓扑排序；
-2. **枚举全部**：DFS + 回溯，统计总数，支持输出上限（默认 1000）与超时（30 秒）、可中途取消；
+2. **枚举全部**：DFS + 回溯，统计总数，支持输出上限（默认 1000）；
 3. **环检测**：Kahn 计数 + DFS 三色标记，输出环路径。
 
 ## 目录结构
 
 ```
-tp/                            # 仓库根（E:\tp，唯一工程根，无嵌套工程目录）
+topo-sort-app/
 ├── README.md                  # 本文件
 ├── .gitignore
 ├── docs/                      # 接口契约.md（V1.0 已冻结）、代码规范.md、设计/图数据结构设计.md
 ├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
-├── src/                       # 全部源码唯一根（编译输出 out/，已被 .gitignore 忽略）
+├── src/
 │   ├── model/                 # Vertex / Edge / Graph
 │   ├── algorithm/             # Kahn / 枚举 / 环检测
 │   ├── io/                    # DataParser / FileManager（组员 D 正式实现）
-│   ├── view/                  # GraphPanel（环形画布+环高亮+PNG导出，C 交付）
+│   ├── view/                  # GraphPanel（静态环形画布，C 后续演进分层布局）
 │   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
 │   └── util/                  # UIStyle / ExceptionHandler / InputValidator
 ├── test/                      # 算法 / 解析测试（根目录，T-E1/E2）
@@ -47,13 +48,13 @@ tp/                            # 仓库根（E:\tp，唯一工程根，无嵌套
 
 ## 成员分工（5 人 × 8 项任务）
 
-| 角色 | 学号 | 负责模块 | 核心任务 |
-|------|------|---------|---------|
-| 组长 B（易雨杰） | 2024611209 | GUI 主框架 + 交互控制 + 项目统筹 | 主窗口、输入/结果面板、主流程控制、状态栏异常、需求分析、详细设计 GUI、界面美化 + 整体协调 |
-| 组员 A（骆深敏） | 2024611026 | 架构 + 核心算法 + 文档统筹 | 图结构、Kahn、枚举、环检测、接口契约、Git、可行性分析、概要设计 + 报告统筹 |
-| 组员 C（戴燕岚） | 2024611180 | 关系图可视化 + 图片导出 | 绘制组件、分层/环形布局、缩放拖拽、PNG 导出、详细设计可视化、截图整理 |
-| 组员 D（黄佳慧） | 2024611022 | 数据文件 + 导入导出 + 异常 | 解析器、文件读写、输入校验、异常场景清单、两组数据、测试报告、用户手册 |
-| 组员 E（吴丽梅） | 2024611020 | 测试 + 工程交付 | 算法/解析测试、冒烟脚本、命令行入口、会议记录、readme、打包、提交核对 |
+| 角色 | 负责模块 | 核心任务 |
+|------|---------|---------|
+| 组长 B（yyj138） | GUI 主框架 + 交互控制 + 项目统筹 | 主窗口、输入/结果面板、主流程控制、状态栏异常、需求分析、详细设计 GUI、界面美化 + 整体协调 |
+| 组员 A（Mynth116） | 架构 + 核心算法 + 文档统筹 | 图结构、Kahn、枚举、环检测、接口契约、Git、可行性分析、概要设计 + 报告统筹 |
+| 组员 C（____） | 关系图可视化 + 图片导出 | 绘制组件、分层/环形布局、缩放拖拽、PNG 导出、详细设计可视化、截图整理 |
+| 组员 D（____） | 数据文件 + 导入导出 + 异常 | 解析器、文件读写、输入校验、异常场景清单、两组数据、测试报告、用户手册 |
+| 组员 E（____） | 测试 + 工程交付 | 算法/解析测试、冒烟脚本、命令行入口、会议记录、readme、打包、提交核对 |
 
 > 汇报类工作（中期演示、现场答辩、视频录制）由组长另行安排，不计入任务分配。
 
@@ -71,7 +72,7 @@ tp/                            # 仓库根（E:\tp，唯一工程根，无嵌套
 ## 开工准备
 
 ```
-# 1. 检查环境（JDK 21、Git）
+# 1. 检查环境（JDK 8+、Git）
 java -version
 git --version
 
@@ -81,7 +82,7 @@ git config --global user.email "你的邮箱"
 
 # 3. 克隆并切到自己的分支（A/C/D/E 对应 dev-a/dev-c/dev-d/dev-e）
 git clone <仓库地址>
-cd tp
+cd topo-sort-app
 git checkout -b dev-b origin/dev-b
 
 # 4. 验证
@@ -117,12 +118,10 @@ git branch          # 应显示 * dev-b
 
 ```
 # 示例（任务书图 1 节选）
-<MA 140,MA 141>
-<MA 141,CS 150>
-<MA 141,CS 225>
-<CS 150,CS 155>
-<CS 155,CS 200>
-<CS 155,CS 225>
+<CS150,CS155>
+<CS155,CS200>
+<CS155,CS225>
+<CS200,CS225>
 ```
 
 ## 关系图预览
@@ -169,33 +168,12 @@ flowchart LR
 ## 编译与运行
 
 ```powershell
-# Windows PowerShell：在项目根目录递归编译，必须显式指定 UTF-8
-# 编译输出到根目录 out/（已被 .gitignore 忽略）
-$files = (Get-ChildItem -Recurse -Filter "*.java" src |
+# Windows PowerShell：递归编译，必须显式指定 UTF-8
+Set-Location src
+$files = (Get-ChildItem -Recurse -Filter "*.java" |
           Where-Object { $_.Name -ne "package-info.java" }).FullName
 & javac @('-encoding','UTF-8','-d','out') @files
 
-# 跑自测
-java -cp out GraphSelfTest
-java -cp out CycleDetectorSelfTest
-java -cp out test.TestDataParser
-java -cp out test.TestFileManager
-java -cp out test.TestInputValidator
-java -cp out test.AlgorithmTest
-java -cp out test.ParserFaultTest
-
-# 启动 GUI
-java -cp out ui.MainFrame
+Set-Location out
+java ui.MainFrame
 ```
-
-## 测试覆盖
-
-| 模块 | 测试类 | 用例数 | 负责 |
-|------|--------|--------|------|
-| A 图结构 | GraphSelfTest | 16/16 | A |
-| A 环检测 | CycleDetectorSelfTest | 19/19 | A |
-| D 数据解析 | TestDataParser | 35/35 | D |
-| D 文件读写 | TestFileManager | 14/14 | D |
-| D 输入校验 | TestInputValidator | 39/39 | D |
-| E 算法综合 | AlgorithmTest | 18/18 | E |
-| E 解析容错 | ParserFaultTest | 15/15 | E |
