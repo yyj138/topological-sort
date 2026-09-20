@@ -1,12 +1,12 @@
 # 拓扑排序应用软件 详细设计报告（GUI 部分）
 
-本报告由组员 B 编写，对应 GUI 主框架与交互控制部分（任务 T-B1 ~ T-B8）的详细设计，属于项目 CST4823A 高级算法原理实践，指导教师廖海泳 / 陈银冬。报告描述界面布局、事件处理流程、GUI 类结构与调用关系。文档版本 V1.4，更新日期 2026 年 9 月 19 日：V1.4 起接入 C 交付的 GraphPanel（环形布局+环高亮+拓扑序高亮+PNG导出），替换 B 占位实现。V1.3 起 io 包已接入 D 正式版（`DataParser` / `ParseResult` / `ParseIssue`），`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，枚举上限按接口契约统一为 1000 条 / 30 秒 / 可取消。V1.2 历史：B 侧对接方式按跨模块接口契约 V1.0 重写——`MainController` 与 `InputPanel` 不再通过 `DataParser.Edge` 边列表手动建图，改为直接调用 `ParseResult.getGraph()` 取得 `model.Graph`；问题类型由 `DataParser.ParseError` 升级为顶层 `io.ParseIssue`。V1.1 中 §7.3 记录的"InputValidator 规则不一致"与"A 新版契约未合入"两项遗留由此关闭。
+本报告由组员 B 编写，对应 GUI 主框架与交互控制部分（任务 T-B1 ~ T-B8）的详细设计，属于项目 CST4823A 高级算法原理实践，指导教师廖海泳 / 陈银冬。报告描述界面布局、事件处理流程、GUI 类结构与调用关系。文档版本 V1.5，更新日期 2026 年 9 月 20 日：V1.5 起完善结果高亮交互——无环图节点默认蓝色填充+蓝色边框、边灰色，有环图自动标红环节点与环边；单击结果后该序列节点按结果序号从五色色板（绿/橙/紫/青/粉，循环）轮换高亮并叠加序号徽章（拓扑序列必含全部节点，仅靠单一颜色无法区分不同序列），换页不清除高亮；画布字体改用逻辑字体 Font.SANS_SERIF。V1.4 起接入 C 交付的 GraphPanel（环形布局+环高亮+拓扑序高亮+PNG导出），替换 B 占位实现。V1.3 起 io 包已接入 D 正式版（`DataParser` / `ParseResult` / `ParseIssue`），`ParseIssue` 方法名为 `getLineNumber() / getMessage()`，枚举上限按接口契约统一为 1000 条 / 30 秒 / 可取消。V1.2 历史：B 侧对接方式按跨模块接口契约 V1.0 重写——`MainController` 与 `InputPanel` 不再通过 `DataParser.Edge` 边列表手动建图，改为直接调用 `ParseResult.getGraph()` 取得 `model.Graph`；问题类型由 `DataParser.ParseError` 升级为顶层 `io.ParseIssue`。V1.1 中 §7.3 记录的"InputValidator 规则不一致"与"A 新版契约未合入"两项遗留由此关闭。
 
 ## 一、设计概述
 
 ### 1.1 设计目标
 
-本详细设计报告针对 GUI 主框架与交互控制部分（组员 B 任务 T-B1 ~ T-B8），描述界面布局、事件处理流程、GUI 类结构与调用关系，作为编码实现与现场验收的直接依据。V1.4 中描述的全部类、方法签名、流程与常量均与 dev-b 分支源码一致，并与跨模块接口契约 V1.0 完全对齐。
+本详细设计报告针对 GUI 主框架与交互控制部分（组员 B 任务 T-B1 ~ T-B8），描述界面布局、事件处理流程、GUI 类结构与调用关系，作为编码实现与现场验收的直接依据。V1.5 中描述的全部类、方法签名、流程与常量均与 dev-b 分支源码一致，并与跨模块接口契约 V1.0 完全对齐。
 
 ### 1.2 设计原则
 
@@ -24,7 +24,7 @@
 - 源码编码：UTF-8 无 BOM，编译必须带 `-encoding UTF-8`；
 - 中文字体：界面字体使用"微软雅黑"，文本区/结果列表使用逻辑字体 Font.MONOSPACED（物理字体 Consolas 不含中文字形会把中文渲染成方块，逻辑字体可自动回退中文字体）；
 - 接口契约：算法层与解析层均严格遵循契约 V1.0——B 直接调用 `ParseResult.getGraph()` 取得 `model.Graph`，不再在 B 侧建图；问题类型 `io.ParseIssue`、解析器 `io.DataParser` 均按契约交付；
-- 画布：C 已交付 GraphPanel（环形布局 + 环路径红色高亮 + 选中序列绿色高亮 + PNG 导出）。
+- 画布：C 已交付 GraphPanel（环形布局 + 环路径红色高亮 + 选中序列按结果序号轮换色板高亮并叠加序号徽章 + PNG 导出）。
 
 ### 1.4 9.17 会议决议对 GUI 的影响
 
@@ -85,7 +85,7 @@ flowchart TB
 | 菜单栏 | JMenuBar | 文件 / 编辑 / 计算 / 帮助 四个菜单，均注册 Alt+字母 助记符 |
 | 工具栏 | JToolBar | 打开 / 保存 / 计算 / 取消计算 / 导出图片 / 导出结果 六个文字按钮 |
 | 左栏 | InputPanel | 上文本区、下表格视图（垂直分割），载入/保存/双向同步/增删行/清空七个按钮 |
-| 右栏上 | GraphPanel（view 包，C 交付） | 环形布局，绘制有向箭头与自环；环路径红色加粗、选中序列节点绿色 |
+| 右栏上 | GraphPanel（view 包，C 交付） | 环形布局，绘制有向箭头与自环；环路径红色加粗、选中序列按结果序号轮换颜色（绿/橙/紫/青/粉）并叠加序号徽章 |
 | 右栏下 | ResultPanel | 结果分页列表（每页 20 条），总数/页码、单击高亮、双击复制 |
 | 状态栏 | StatusBar | 节点数 / 边数 / 含环 / 序列数 / 耗时 / 右侧动态提示 |
 
@@ -182,7 +182,7 @@ sequenceDiagram
         BG-->>EDT: done()
         EDT->>EDT: setBusy(false)
         EDT->>RP: setResults(sequences)
-        EDT->>GP: setSelectedOrder(sequences[0])
+        Note over EDT,GP: 不自动高亮，等用户单击结果行<br/>再触发 setSelectedOrder(seq, resultIndex)
         EDT->>SB: updateStats(节点, 边, false, 条数, ms)
         EDT->>SB: setTip(按 StopReason 中文提示)
     end
@@ -202,7 +202,7 @@ sequenceDiagram
 10. 有环：画布 `setHighlightedCycle` 标红、结果列表清空、状态栏按含环更新，弹窗显示环路径后结束；
 11. 无环：setBusy 切换按钮状态，启动内部类 EnumerationWorker（继承 SwingWorker）；
 12. 后台执行 `new AllTopoSorts().enumerate(graph, 1000, 30000, 取消谓词)`，结果上限 1000 条、超时 30 秒；
-13. done() 回到 EDT：填充 ResultPanel、画布高亮首条序列、状态栏更新统计；
+13. done() 回到 EDT：填充 ResultPanel（不自动高亮，等用户单击列表项）、状态栏更新统计；
 14. 状态栏提示按 StopReason 区分：COMPLETED"枚举完成，共 N 条"、LIMIT_REACHED"达到结果上限"、TIMEOUT"超时停止"、CANCELLED"已取消，已显示部分序列"。
 
 ### 3.3 用户选中序列时的事件流
@@ -212,10 +212,12 @@ sequenceDiagram
 flowchart LR
     U["用户单击 ResultPanel 列表项"] --> L["onSequenceSelected(seq)"]
     L --> M["MainController 绑定回调"]
-    M --> G["GraphPanel.setSelectedOrder(seq)<br/>画布上蓝色高亮选中序列"]
+    M --> G["GraphPanel.setSelectedOrder(seq, idx)<br/>按结果序号从色板取色轮换高亮<br/>节点叠加序号徽章，其余节点保持默认蓝色"]
 ```
 
 双击列表项或点击"复制当前"把 `a -> b -> c` 形式的序列写入系统剪贴板。
+
+高亮交互约定：无环图节点默认蓝色填充+蓝色边框、边灰色；单击结果后该序列节点按该结果的序号从五色色板（绿/橙/紫/青/粉，循环）中取色填充，节点右上角叠加同色序号徽章（标示该节点在序列中的位置），单击另一条结果则颜色与徽章一起切换，切换分页不清除已选高亮（换页只重建列表模型，画布的选中状态独立保存）。由于任何拓扑序列都包含全部节点，仅靠单一颜色无法区分不同序列，因此采用颜色轮换+序号徽章双重区分。有环图由 `setHighlightedCycle` 自动把环上节点标红、环边红色加粗，无需点击；红色（环）与序列高亮是两种独立状态，不会同时出现。
 
 ### 3.4 文件操作事件流
 
@@ -311,6 +313,7 @@ public void syncTableToText();
 // ui.ResultPanel
 public void setResults(List<List<String>> results);
 public List<List<String>> getResults();
+public int getSelectedResultIndex();   // 当前选中结果的全局序号，未选中返回 -1
 public void setSelectionListener(SelectionListener listener);
 interface SelectionListener { void onSequenceSelected(List<String> sequence); }
 
@@ -333,8 +336,8 @@ private void exportPNG();
 // view.GraphPanel
 public void setGraph(Graph graph);
 public void setHighlightedCycle(List<String> closedCycle); // 闭合序列 [A,...,A]
-public void setSelectedOrder(List<String> order);
-public void clear();
+public void setSelectedOrder(List<String> order);          // 契约方法保留，默认 0 号色板
+public void setSelectedOrder(List<String> order, int resultIndex); // V1.5 新增重载：按结果序号轮换色板
 public void exportPNG(File file) throws IOException;
 
 // util.ExceptionHandler
@@ -440,10 +443,10 @@ flowchart TD
 |---|---|---|
 | T-B1 MainFrame | 完成（V1.0 起） | 全量 `-encoding UTF-8` 编译通过；GUI 启动截图，菜单/工具栏/分割布局正常 |
 | T-B2 InputPanel | 完成（V1.2 调整） | 默认中文提示正常显示；载入/保存/双向同步/增删行可用；`syncTextToTable` 改为基于 `parsed.getGraph()` + `getVertexNames` + `getSuccessors` 派生表格行 |
-| T-B3 ResultPanel | 完成（V1.0 起） | 每页 20 条分页、单击高亮回调、双击复制均已验证 |
+| T-B3 ResultPanel | 完成（V1.0 起，V1.5 调整） | 每页 20 条分页、单击高亮回调、双击复制均已验证；V1.5 新增 `getSelectedResultIndex()` 支撑色板轮换 |
 | T-B4 MainController | 完成（V1.2 调整） | `compute()` 直接取 `parsed.getGraph()`，不再手动建图；`getErrors()` 中止流程、`getWarnings()` 仅提示；后台枚举与取消按钮互斥启用 |
 | T-B5 StatusBar + ExceptionHandler | 完成（V1.0 起） | 含环红色/无环绿色；错误弹窗带行号；V1.2 增加对 warning 流的 Info 弹窗 |
-| T-B6/T-B7 文档 | 完成（V1.4） | 需求分析报告、本报告随代码同步更新至 V1.4 |
+| T-B6/T-B7 文档 | 完成（V1.5） | 需求分析报告、本报告随代码同步更新至 V1.5 |
 | T-B8 UIStyle | 完成（V1.1 起） | 全局样式统一；修复中文方块问题（Consolas → Font.MONOSPACED），V1.2 保持未回退 |
 
 流水线验证（dev-b，V1.4）：全量 `javac -encoding UTF-8` 编译零错误；A 侧 GraphSelfTest 16/16、CycleDetectorSelfTest 19/19；D 侧 TestDataParser 35/35、TestFileManager 14/14、TestInputValidator 39/39；E 侧 AlgorithmTest 18/18、ParserFaultTest 15/15；23 项命令行链路冒烟全部通过——data/figure1.txt（15 节点/16 边，节点名含内部空格）解析后节点数/边数精确、Kahn 序列覆盖全部节点；重复边产生 warning 且不计入度数；自环返回 `[X,X]`；非法行返回带行号 error；全角 `＜＞，` 兼容；仅注释输入返回空 Graph 且无 error；小图全枚举恰得 2 条 COMPLETED 序列；孤立节点保留并进入每条序列；含环图枚举入口以 CYCLE 拒绝。
@@ -463,7 +466,8 @@ flowchart TD
 2. **画布已接入 C 正式版**（V1.4）：C 交付的 GraphPanel 提供 setGraph/setHighlightedCycle/setSelectedOrder/exportPNG 四个方法，与 MainController 对接完成；
 3. **测试已接入 E 的 E1/E2**（V1.4）：AlgorithmTest 18/18（正确性/边界/环/性能）、ParserFaultTest 15/15（解析器容错），全部通过；
 4. **节点两行展示**："编码 + 课程名"依赖课程名数据，curriculum.txt 目前以中文实践课名作为节点名的一部分存在，独立课程名映射尚未提供；
-5. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代。
+5. **快捷键与国际化**：仅 Alt 菜单助记符，无 Ctrl 加速键；界面文案中文硬编码，ResourceBundle 国际化后续迭代；
+6. **V1.5 高亮交互完善**：无环图单击结果后按结果序号从五色色板（绿/橙/紫/青/粉）轮换高亮并叠加序号徽章——拓扑序列必含全部节点，单一颜色无法区分不同序列；换页不清除高亮；有环图自动标红不受影响；契约方法 `setSelectedOrder(List)` 原样保留，仅新增重载，与 A/C/D 接口完全兼容。已通过自动化 GUI 冒烟（两条序列点选切换截图核对颜色与徽章）验证。
 
 > V1.1 遗留的"InputValidator 规则不一致"与"A 新版契约未合入 main"两项在 V1.2 中已通过 B 侧直接对接契约 V1.0 关闭：B 不依赖 `InputValidator`，也不再调用 `Graph.addEdge` 建图。
 

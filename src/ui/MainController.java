@@ -77,9 +77,11 @@ public class MainController {
         frame.getMiAbout().addActionListener(e -> ExceptionHandler.showInfo(frame,
                 "拓扑排序应用软件\nCST4823A 高级算法原理实践\n开发分支 dev-b"));
 
-        // 结果选中 -> 图上高亮该序列
-        frame.getResultPanel().setSelectionListener(
-                seq -> frame.getGraphPanel().setSelectedOrder(seq));
+        // 结果选中 -> 图上高亮该序列；颜色随结果序号轮换色板，点不同行颜色不同
+        frame.getResultPanel().setSelectionListener(seq -> {
+            int idx = frame.getResultPanel().getSelectedResultIndex();
+            frame.getGraphPanel().setSelectedOrder(seq, Math.max(idx, 0));
+        });
     }
 
     // 核心流程：解析 -> 校验 -> 取图 -> 判环 -> 后台枚举
@@ -202,9 +204,7 @@ public class MainController {
         List<List<String>> sequences = result.getSequences();
         frame.getResultPanel().setResults(sequences);
 
-        if (!sequences.isEmpty()) {
         // 不自动高亮第一条，等用户单击结果时再高亮
-        }
         frame.getStatusBar().updateStats(
                 graph.getVertexCount(), graph.getEdgeCount(),
                 false, sequences.size(), costMillis);

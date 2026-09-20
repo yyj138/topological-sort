@@ -219,5 +219,13 @@ public class ResultPanel extends JPanel {
         this.selectionListener = listener;
     }
 
+    // 当前选中结果的全局序号（未选中返回 -1），供控制器决定图上高亮的轮换颜色
+    public int getSelectedResultIndex() {
+        int idx = resultList.getSelectedIndex();
+        if (idx < 0) return -1;
+        int globalIdx = currentPage * PAGE_SIZE + idx;
+        return globalIdx < allResults.size() ? globalIdx : -1;
+    }
+
     public List<List<String>> getResults() { return allResults; }
 }

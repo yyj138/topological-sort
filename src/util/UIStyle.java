@@ -26,12 +26,10 @@ public final class UIStyle {
     public static final Color BG_TOOLBAR    = new Color(238, 240, 245);
     public static final Color BG_STATUSBAR   = new Color(50, 55, 65);
     public static final Color FG_PRIMARY     = new Color(33, 37, 41);
-    public static final Color FG_SECONDARY   = new Color(108, 117, 125);
     public static final Color FG_ON_DARK     = new Color(236, 240, 245);
     public static final Color ACCENT          = new Color(50, 120, 200);
     public static final Color ACCENT_HOVER   = new Color(35, 95, 175);
     public static final Color SUCCESS        = new Color(40, 167, 69);
-    public static final Color WARNING        = new Color(255, 159, 0);
     public static final Color DANGER         = new Color(220, 53, 69);
     public static final Color BORDER_LIGHT    = new Color(220, 223, 228);
 
@@ -40,7 +38,6 @@ public final class UIStyle {
     public static final Font  FONT_TITLE     = new Font(FONT_FAMILY, Font.BOLD, 16);
     public static final Font  FONT_SUBTITLE  = new Font(FONT_FAMILY, Font.BOLD, 13);
     public static final Font  FONT_BODY      = new Font(FONT_FAMILY, Font.PLAIN, 13);
-    public static final Font  FONT_SMALL     = new Font(FONT_FAMILY, Font.PLAIN, 12);
     // 逻辑等宽字体：ASCII 等宽，同时可回退显示中文（物理 Consolas 不含中文字形会显示方块）
     public static final Font  FONT_MONO      = new Font(Font.MONOSPACED, Font.PLAIN, 13);
     public static final Font  FONT_STATUS    = new Font(FONT_FAMILY, Font.PLAIN, 12);
@@ -49,12 +46,9 @@ public final class UIStyle {
     public static final int GAP_TINY     = 4;
     public static final int GAP_SMALL    = 8;
     public static final int GAP_MEDIUM   = 12;
-    public static final int GAP_LARGE   = 16;
     public static final int PADDING_BTN  = 6;
 
     // 按钮尺寸
-    public static final Dimension BTN_SIZE      = new Dimension(96, 32);
-    public static final Dimension BTN_SIZE_SM   = new Dimension(76, 28);
     public static final Dimension BTN_ICON_SIZE = new Dimension(36, 36);
 
     private UIStyle() {}

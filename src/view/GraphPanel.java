@@ -12,7 +12,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,34 +26,50 @@ import java.util.Map;
 public class GraphPanel extends JPanel {
 
     private static final int NODE_RADIUS = 26;
-    private static final Color NODE_FILL    = new Color(232, 240, 254);
-    private static final Color NODE_BORDER  = new Color(70, 130, 180);
-    private static final Color CYCLE_FILL   = new Color(255, 225, 225);
-    private static final Color CYCLE_BORDER = new Color(214, 48, 49);
-    private static final Color ORDER_FILL   = new Color(225, 255, 225);
-    private static final Color ORDER_BORDER = new Color(39, 174, 96);
+    // 交互规范三态：默认蓝、选中序列绿、环节点红，三者互不叠加
+    private static final Color NODE_FILL    = new Color(135, 206, 250);
+    private static final Color NODE_BORDER  = new Color(21, 101, 192);
+    private static final Color CYCLE_FILL   = new Color(255, 129, 128);
+    private static final Color CYCLE_BORDER = new Color(183, 28, 28);
+    // 选中序列高亮色板：不同序列轮换颜色（节点填充/边框/徽章同色系），避开默认节点蓝
+    private static final Color[] ORDER_FILLS = {
+            new Color(144, 238, 144),   // 绿
+            new Color(255, 205, 130),   // 橙
+            new Color(206, 176, 246),   // 紫
+            new Color(130, 216, 226),   // 青
+            new Color(248, 168, 196),   // 粉
+    };
+    private static final Color[] ORDER_BORDERS = {
+            new Color(27, 122, 62),
+            new Color(191, 111, 18),
+            new Color(106, 61, 168),
+            new Color(17, 122, 141),
+            new Color(182, 55, 105),
+    };
     private static final Color EDGE_COLOR   = new Color(140, 140, 140);
-    private static final Color CYCLE_EDGE   = new Color(214, 48, 49);
+    private static final Color CYCLE_EDGE   = new Color(211, 47, 47);
     private static final Color TEXT_COLOR   = new Color(33, 33, 33);
-
-    private static final String FONT_NAME = "Microsoft YaHei";
 
     private Graph graph;
     private List<String> highlightedCycle = new ArrayList<>();
     private List<String> selectedOrder    = new ArrayList<>();
+    // 当前高亮色板下标：随选中结果的序号轮换，让点不同行时颜色不同
+    private int selectedColorIndex;
 
     private final Map<String, Point2D.Double> nodePositions = new LinkedHashMap<>();
 
     public GraphPanel() {
         setBackground(Color.WHITE);
         setPreferredSize(new Dimension(800, 600));
-        setFont(new Font(FONT_NAME, Font.PLAIN, 13));
+        // 逻辑字体保证中文节点名在任何系统上正常渲染
+        setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
     }
 
     public void setGraph(Graph graph) {
         this.graph = graph;
         this.highlightedCycle = new ArrayList<>();
         this.selectedOrder = new ArrayList<>();
+        this.selectedColorIndex = 0;
         this.nodePositions.clear();
         repaint();
     }
@@ -64,8 +79,16 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
+    // 原契约方法保留：默认使用第 0 号色板（绿色）
     public void setSelectedOrder(List<String> order) {
+        setSelectedOrder(order, 0);
+    }
+
+    // 新增重载：resultIndex 为被点结果的全局序号，决定高亮颜色；负数按 0 处理
+    public void setSelectedOrder(List<String> order, int resultIndex) {
         this.selectedOrder = (order != null) ? new ArrayList<>(order) : new ArrayList<>();
+        this.selectedColorIndex =
+                Math.floorMod(resultIndex, ORDER_FILLS.length);
         repaint();
     }
 
@@ -152,7 +175,7 @@ public class GraphPanel extends JPanel {
                 boolean inCycle  = isEdgeInCycle(from, to);
 
                 g2.setColor(inCycle ? CYCLE_EDGE : EDGE_COLOR);
-                g2.setStroke(new BasicStroke(inCycle ? 2.5f : 1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.setStroke(new BasicStroke(inCycle ? 3.0f : 1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
                 if (selfLoop) {
                     drawSelfLoop(g2, p1);
@@ -212,7 +235,7 @@ public class GraphPanel extends JPanel {
 
     private void drawNodes(Graphics2D g2) {
         Font font = getFont();
-        if (font == null) font = new Font(FONT_NAME, Font.PLAIN, 13);
+        if (font == null) font = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
         g2.setFont(font);
         FontMetrics fm = g2.getFontMetrics();
 
@@ -228,7 +251,9 @@ public class GraphPanel extends JPanel {
                 fill = CYCLE_FILL; border = CYCLE_BORDER; stroke = 3;
             }
             if (selectedOrder.contains(name)) {
-                fill = ORDER_FILL; border = ORDER_BORDER; stroke = 3;
+                fill = ORDER_FILLS[selectedColorIndex];
+                border = ORDER_BORDERS[selectedColorIndex];
+                stroke = 3;
             }
 
             int x = (int) Math.round(p.x - NODE_RADIUS);
@@ -255,7 +280,31 @@ public class GraphPanel extends JPanel {
 
             g2.setFont(font);
             fm = g2.getFontMetrics();
+
+            // 选中序列的节点右上角叠加序号徽章：
+            // 拓扑序列必含全部节点，仅颜色无法区分不同序列，用序号体现该节点在序列中的位置
+            if (selectedOrder.contains(name)) {
+                drawOrderBadge(g2, p, selectedOrder.indexOf(name) + 1);
+            }
         }
+    }
+
+    // 在节点右上角画序号徽章（深绿圆底白字），临时改字体后必须恢复，避免污染后续节点绘制
+    private void drawOrderBadge(Graphics2D g2, Point2D.Double p, int order) {
+        Font oldFont = g2.getFont();
+        String text = String.valueOf(order);
+        int r = text.length() > 1 ? 12 : 10;
+        int cx = (int) Math.round(p.x + NODE_RADIUS * 0.75);
+        int cy = (int) Math.round(p.y - NODE_RADIUS * 0.75);
+
+        g2.setColor(ORDER_BORDERS[selectedColorIndex]);
+        g2.fillOval(cx - r, cy - r, r * 2, r * 2);
+        g2.setColor(Color.WHITE);
+        g2.setFont(oldFont.deriveFont(Font.BOLD, 11f));
+        FontMetrics fm = g2.getFontMetrics();
+        g2.drawString(text, cx - fm.stringWidth(text) / 2, cy + fm.getAscent() / 2 - 1);
+
+        g2.setFont(oldFont);
     }
 
     private boolean isEdgeInCycle(String from, String to) {
@@ -267,28 +316,5 @@ public class GraphPanel extends JPanel {
             if (a.equals(from) && b.equals(to)) return true;
         }
         return false;
-    }
-
-    public static void main(String[] args) {
-        Graph g = new Graph();
-        g.addEdge("MA140", "MA141");
-        g.addEdge("MA141", "CS150");
-        g.addEdge("MA141", "CS225");
-        g.addEdge("CS150", "CS155");
-        g.addEdge("CS155", "CS200");
-        g.addEdge("CS155", "CS225");
-        g.addEdge("CS200", "CS230");
-        g.addEdge("CS225", "CS300");
-
-        GraphPanel panel = new GraphPanel();
-        panel.setGraph(g);
-        panel.setSelectedOrder(Arrays.asList("MA140", "MA141", "CS150"));
-
-        JFrame frame = new JFrame("GraphPanel 测试");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(900, 700);
-        frame.setLocationRelativeTo(null);
-        frame.setContentPane(panel);
-        frame.setVisible(true);
     }
 }
