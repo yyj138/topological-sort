@@ -10,6 +10,7 @@ import java.util.*;
  * - 分层布局（T-C2）：按拓扑层分配纵向位置，同层横向分布
  *   · 重心法排序同层节点，减少边交叉
  *   · 用节点实际宽度 + 最小间距定位，100 节点不重叠
+ *   · 纵向间距有下限，保证相邻层节点不挨在一起
  *   · 按画布尺寸自适应
  * - 环形布局（T-C3 兜底）：所有节点均匀分布在圆周上
  */
@@ -18,9 +19,14 @@ public class LayoutManager {
     public static final int LAYOUT_LAYERED  = 0;
     public static final int LAYOUT_CIRCULAR = 1;
 
-    private static final int H_GAP    = 30;  // 同层最小横向间距
-    private static final int V_PADDING = 50;  // 上下留白
-    private static final int H_PADDING = 40;  // 左右留白
+    /** 同层节点之间最小横向间距 */
+    private static final int H_GAP = 30;
+    /** 相邻层节点的最小纵向间隙（上一节点底 -> 下一节点顶） */
+    private static final int V_GAP = 20;
+    /** 画布上下留白（理想值） */
+    private static final int V_PADDING = 50;
+    /** 画布左右留白 */
+    private static final int H_PADDING = 40;
 
     private int mode = LAYOUT_LAYERED;
 
@@ -72,12 +78,16 @@ public class LayoutManager {
         int maxLayer   = byLayer.lastKey();
         int layerCount = maxLayer + 1;
 
-        // 3) 纵向位置
-        double usableH = Math.max(50, h - 2.0 * V_PADDING);
-        double yStep   = (layerCount > 1) ? usableH / (layerCount - 1) : 0;
+        // 3) 纵向步长：理想铺满画布 vs 最小不挨间距，取较大者
+        double idealYStep = (layerCount > 1)
+                ? Math.max(50.0, h - 2.0 * V_PADDING) / (layerCount - 1)
+                : 0;
+        double minYStep = nodeRadius * 2.0 + V_GAP;
+        double yStep = (layerCount > 1) ? Math.max(idealYStep, minYStep) : 0;
+
         double usableW = Math.max(100, w - 2.0 * H_PADDING);
 
-        // 4) 逐层计算横向位置（重心排序 -> 减少边交叉）
+        // 4) 逐层计算横向位置
         Map<String, Double> xPos = new HashMap<>();
 
         for (Map.Entry<Integer, List<String>> entry : byLayer.entrySet()) {
@@ -85,7 +95,6 @@ public class LayoutManager {
             List<String> layerNodes = entry.getValue();
             int count = layerNodes.size();
 
-            // 排序：第 0 层按名称；其余层按前驱平均 x（重心法）
             if (lv == 0) {
                 layerNodes.sort(Comparator.naturalOrder());
             } else {
@@ -93,7 +102,6 @@ public class LayoutManager {
                         name -> avgPredecessorX(name, graph, xPos)));
             }
 
-            // 节点宽度 + 最小间距
             int[] widths = new int[count];
             double totalMinW = 0;
             for (int i = 0; i < count; i++) {
@@ -106,7 +114,6 @@ public class LayoutManager {
 
             double y = (layerCount == 1) ? h / 2.0 : V_PADDING + lv * yStep;
 
-            // 单节点：水平居中
             if (count == 1) {
                 double cx = w / 2.0;
                 result.put(layerNodes.get(0), new Point2D.Double(cx, y));
@@ -166,7 +173,6 @@ public class LayoutManager {
             }
         }
 
-        // 含环兜底：仍有入度的节点放到最末层
         int maxLayer = 0;
         for (int lv : layer.values()) maxLayer = Math.max(maxLayer, lv);
         int fallbackLayer = maxLayer + 1;

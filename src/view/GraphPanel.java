@@ -5,8 +5,11 @@ import model.Graph;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.awt.geom.Arc2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -25,12 +28,13 @@ import java.util.Map;
  * T-C1：圆角矩形节点 + 宽度自适应 + 有向箭头 + 三种高亮 + 双击查看信息
  * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
  * T-C3：环形布局兜底 + switchLayout 布局切换入口
- * T-C5：exportPNG 导出画布（含背景、节点、边、图例），中文不乱码
+ * T-C4：滚轮缩放（以鼠标为中心）、拖拽平移、拖动节点、显示缩放比例
+ * T-C5：exportPNG 导出画布（含图例），中文不乱码
  * ------------------------------------------------------------
  * 接口对齐 MainController：
  *   setGraph / setHighlightedCycle / setSelectedOrder / exportPNG
  * 供 B 调用扩展接口：
- *   setSelectedNode / switchLayout
+ *   setSelectedNode / switchLayout / resetView / getScale
  */
 public class GraphPanel extends JPanel {
 
@@ -50,6 +54,9 @@ public class GraphPanel extends JPanel {
 
     private static final String FONT_NAME = "Microsoft YaHei";
 
+    private static final double MIN_SCALE = 0.3;
+    private static final double MAX_SCALE = 3.0;
+
     private Graph graph;
     private List<String> highlightedCycle = new ArrayList<>();
     private List<String> selectedOrder    = new ArrayList<>();
@@ -58,18 +65,95 @@ public class GraphPanel extends JPanel {
     private final LayoutManager layoutManager = new LayoutManager();
     private final Map<String, Point2D.Double> nodePositions = new LinkedHashMap<>();
 
+    // T-C4 视图变换
+    private double scale    = 1.0;
+    private double offsetX  = 0;
+    private double offsetY  = 0;
+
+    private boolean layoutDirty = true;
+
+    // T-C4 拖拽状态
+    private String           dragNode         = null;
+    private Point            dragStartScreen  = null;
+    private Point2D.Double   dragStartModel   = null;
+    private Point2D.Double   dragNodeStartPos = null;
+
     public GraphPanel() {
         setBackground(Color.WHITE);
         setPreferredSize(new Dimension(900, 650));
         setFont(new Font(FONT_NAME, Font.PLAIN, 13));
 
-        // 双击节点显示详细信息
         addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (!SwingUtilities.isLeftMouseButton(e)) return;
+                if (e.getClickCount() >= 2) return;
+
+                Point2D.Double mp = toModel(e.getX(), e.getY());
+                String hit = hitNode(mp);
+                if (hit != null) {
+                    dragNode = hit;
+                    dragStartModel = mp;
+                    dragNodeStartPos = nodePositions.get(hit);
+                } else {
+                    dragNode = null;
+                    dragStartScreen = e.getPoint();
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                dragNode = null;
+                dragStartScreen = null;
+                dragStartModel = null;
+                dragNodeStartPos = null;
+            }
+
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
                     showNodeInfo(e.getX(), e.getY());
                 }
+            }
+        });
+
+        addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (dragNode != null && dragStartModel != null && dragNodeStartPos != null) {
+                    Point2D.Double mp = toModel(e.getX(), e.getY());
+                    double nx = dragNodeStartPos.x + (mp.x - dragStartModel.x);
+                    double ny = dragNodeStartPos.y + (mp.y - dragStartModel.y);
+                    nodePositions.put(dragNode, new Point2D.Double(nx, ny));
+                    repaint();
+                } else if (dragStartScreen != null) {
+                    offsetX += e.getX() - dragStartScreen.x;
+                    offsetY += e.getY() - dragStartScreen.y;
+                    dragStartScreen = e.getPoint();
+                    repaint();
+                }
+            }
+        });
+
+        addMouseWheelListener(e -> {
+            double delta = -e.getWheelRotation() * 0.1;
+            double oldScale = scale;
+            scale = clamp(scale + delta, MIN_SCALE, MAX_SCALE);
+            if (Math.abs(scale - oldScale) < 1e-9) return;
+
+            double mx = e.getX();
+            double my = e.getY();
+            double factor = scale / oldScale;
+            offsetX = mx - (mx - offsetX) * factor;
+            offsetY = my - (my - offsetY) * factor;
+            repaint();
+        });
+
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                layoutDirty = true;
+                repaint();
             }
         });
     }
@@ -84,7 +168,8 @@ public class GraphPanel extends JPanel {
         this.selectedOrder = new ArrayList<>();
         this.selectedNode = null;
         this.nodePositions.clear();
-        repaint();
+        this.layoutDirty = true;
+        this.resetView();
     }
 
     public void setHighlightedCycle(List<String> cycle) {
@@ -97,17 +182,25 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
-    /** 供 ResultPanel 单击某条序列时调用，高亮单个节点 */
     public void setSelectedNode(String nodeName) {
         this.selectedNode = nodeName;
         repaint();
     }
 
-    /** 供工具栏切换布局：LayoutManager.LAYOUT_LAYERED / LAYOUT_CIRCULAR */
     public void switchLayout(int mode) {
         layoutManager.setMode(mode);
+        layoutDirty = true;
         repaint();
     }
+
+    public void resetView() {
+        scale = 1.0;
+        offsetX = 0;
+        offsetY = 0;
+        repaint();
+    }
+
+    public double getScale() { return scale; }
 
     public void exportPNG(File file) throws IOException {
         int w = getWidth()  > 0 ? getWidth()  : getPreferredSize().width;
@@ -120,7 +213,14 @@ public class GraphPanel extends JPanel {
             g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g2.setColor(Color.WHITE);
             g2.fillRect(0, 0, w, h);
-            drawGraph(g2, w, h);
+
+            Graphics2D gBody = (Graphics2D) g2.create();
+            gBody.translate(offsetX, offsetY);
+            gBody.scale(scale, scale);
+            drawGraph(gBody, w, h);
+            gBody.dispose();
+
+            if (graph != null) drawLegend(g2, w, h);
         } finally {
             g2.dispose();
         }
@@ -131,7 +231,6 @@ public class GraphPanel extends JPanel {
     // ========== 节点宽度估算（GraphPanel 与 LayoutManager 共用）===
     // ============================================================
 
-    /** 中文按 14px、英文数字按 8px，最少 NODE_RADIUS*2 */
     public static int estimateNodeWidth(String name) {
         int w = 0;
         for (int i = 0; i < name.length(); i++) {
@@ -148,13 +247,38 @@ public class GraphPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g.create();
+
+        if (graph == null) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                drawGraph(g2, getWidth(), getHeight());
+            } finally {
+                g2.dispose();
+            }
+            return;
+        }
+
+        Graphics2D gBody = (Graphics2D) g.create();
         try {
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            drawGraph(g2, getWidth(), getHeight());
+            gBody.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            gBody.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            gBody.translate(offsetX, offsetY);
+            gBody.scale(scale, scale);
+            drawGraph(gBody, getWidth(), getHeight());
         } finally {
-            g2.dispose();
+            gBody.dispose();
+        }
+
+        Graphics2D gOverlay = (Graphics2D) g.create();
+        try {
+            gOverlay.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            gOverlay.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            drawLegend(gOverlay, getWidth(), getHeight());
+            drawZoomIndicator(gOverlay, getWidth(), getHeight());
+        } finally {
+            gOverlay.dispose();
         }
     }
 
@@ -168,21 +292,19 @@ public class GraphPanel extends JPanel {
             return;
         }
 
-        recomputeLayout(w, h);
+        recomputeLayoutIfNeeded(w, h);
         drawEdges(g2);
         drawNodes(g2);
-        drawLegend(g2, w, h);   // T-C5 要求画布含图例
     }
 
-    // ============================================================
-    // ====================== 布局计算 ===========================
-    // ============================================================
-
-    private void recomputeLayout(int w, int h) {
+    private void recomputeLayoutIfNeeded(int w, int h) {
+        if (!layoutDirty) return;
         nodePositions.clear();
-        if (graph == null) return;
-        Map<String, Point2D.Double> pos = layoutManager.computeLayout(graph, w, h, NODE_RADIUS);
-        nodePositions.putAll(pos);
+        if (graph != null) {
+            Map<String, Point2D.Double> pos = layoutManager.computeLayout(graph, w, h, NODE_RADIUS);
+            nodePositions.putAll(pos);
+        }
+        layoutDirty = false;
     }
 
     // ============================================================
@@ -221,7 +343,6 @@ public class GraphPanel extends JPanel {
         }
     }
 
-    /** 从源/目标矩形的边缘出发画箭头，避免穿过节点本体 */
     private void drawArrow(Graphics2D g2, Point2D.Double from, Point2D.Double to,
                            String fromName, String toName) {
         double dx = to.x - from.x;
@@ -257,7 +378,6 @@ public class GraphPanel extends JPanel {
                 new int[]{(int) Math.round(ey), y1, y2}, 3);
     }
 
-    /** 沿单位方向 (ux,uy) 从矩形中心到矩形边缘的距离 */
     private double halfExtent(double ux, double uy, double halfW, double halfH) {
         double tx = (Math.abs(ux) < 1e-6) ? Double.MAX_VALUE : halfW / Math.abs(ux);
         double ty = (Math.abs(uy) < 1e-6) ? Double.MAX_VALUE : halfH / Math.abs(uy);
@@ -330,7 +450,7 @@ public class GraphPanel extends JPanel {
             g2.setColor(TEXT_COLOR);
             int tw = fm.stringWidth(name);
             int tx = (int) Math.round(p.x) - tw / 2;
-            int ty = (int) Math.round(p.y) + fm.getAscent() / 2 - 2;
+            int ty = (int) Math.round(p.y) + (fm.getAscent() - fm.getDescent()) / 2;
             g2.drawString(name, tx, ty);
         }
     }
@@ -339,13 +459,15 @@ public class GraphPanel extends JPanel {
     // ====================== 绘制图例 ===========================
     // ============================================================
 
-    /** 右上角绘制图例，说明颜色含义（T-C5 要求画布含图例） */
+    /**
+     * 图例：色块与文字均以"行中心线"为垂直基准，做到严格视觉居中
+     */
     private void drawLegend(Graphics2D g2, int w, int h) {
         int boxW = 160, boxH = 118;
         int x = w - boxW - 15;
         int y = 15;
 
-        // 半透明白底
+        // 底框
         g2.setColor(new Color(255, 255, 255, 235));
         g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
         g2.setColor(new Color(180, 180, 180));
@@ -355,47 +477,80 @@ public class GraphPanel extends JPanel {
         Font font = getFont() != null ? getFont().deriveFont(12f)
                 : new Font(FONT_NAME, Font.PLAIN, 12);
         g2.setFont(font);
+        FontMetrics fm = g2.getFontMetrics();
 
-        int swatchX = x + 12;
-        int swatchW = 18;
-        int swatchH = 14;
-        int lineY = y + 22;
-        int lineGap = 24;
+        int swatchX    = x + 14;
+        int swatchW    = 18;
+        int swatchH    = 14;
+        int textGap    = 10;
+        int firstLineY = y + 22;
+        int lineGap    = 24;
 
-        // 1) 普通节点
-        g2.setColor(NODE_FILL);
-        g2.fillRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
-        g2.setColor(NODE_BORDER);
-        g2.drawRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        drawLegendItem(g2, fm, swatchX, swatchW, swatchH,
+                firstLineY, textGap, NODE_FILL, NODE_BORDER, "普通节点");
+        drawLegendItem(g2, fm, swatchX, swatchW, swatchH,
+                firstLineY + lineGap, textGap, CYCLE_FILL, CYCLE_BORDER, "环路径");
+        drawLegendItem(g2, fm, swatchX, swatchW, swatchH,
+                firstLineY + lineGap * 2, textGap, ORDER_FILL, ORDER_BORDER, "拓扑序");
+        drawLegendItem(g2, fm, swatchX, swatchW, swatchH,
+                firstLineY + lineGap * 3, textGap, SELECT_FILL, SELECT_BORDER, "选中节点");
+    }
+
+    /** 画一行图例：色块与文字都严格以 centerY 为垂直中心 */
+    private void drawLegendItem(Graphics2D g2, FontMetrics fm,
+                                int swatchX, int swatchW, int swatchH,
+                                int centerY, int textGap,
+                                Color fill, Color border, String text) {
+        // 色块：垂直中心 = centerY
+        int swatchTop = centerY - swatchH / 2;
+        g2.setColor(fill);
+        g2.fillRoundRect(swatchX, swatchTop, swatchW, swatchH, 5, 5);
+        g2.setColor(border);
+        g2.drawRoundRect(swatchX, swatchTop, swatchW, swatchH, 5, 5);
+
+        // 文字：视觉垂直中心 = centerY
         g2.setColor(TEXT_COLOR);
-        g2.drawString("普通节点", swatchX + swatchW + 8, lineY);
+        int textX = swatchX + swatchW + textGap;
+        int textY = centerY + (fm.getAscent() - fm.getDescent()) / 2;
+        g2.drawString(text, textX, textY);
+    }
 
-        // 2) 环路径
-        lineY += lineGap;
-        g2.setColor(CYCLE_FILL);
-        g2.fillRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
-        g2.setColor(CYCLE_BORDER);
-        g2.drawRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
-        g2.setColor(TEXT_COLOR);
-        g2.drawString("环路径", swatchX + swatchW + 8, lineY);
+    // ============================================================
+    // ================== 绘制缩放指示器（T-C4） ==================
+    // ============================================================
 
-        // 3) 拓扑序
-        lineY += lineGap;
-        g2.setColor(ORDER_FILL);
-        g2.fillRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
-        g2.setColor(ORDER_BORDER);
-        g2.drawRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
-        g2.setColor(TEXT_COLOR);
-        g2.drawString("拓扑序", swatchX + swatchW + 8, lineY);
+    /**
+     * 缩放指示器：文字在框内水平 + 垂直严格居中
+     */
+    private void drawZoomIndicator(Graphics2D g2, int w, int h) {
+        String text = String.format("缩放：%.0f%%", scale * 100);
 
-        // 4) 选中节点
-        lineY += lineGap;
-        g2.setColor(SELECT_FILL);
-        g2.fillRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
-        g2.setColor(SELECT_BORDER);
-        g2.drawRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        Font font = getFont() != null ? getFont().deriveFont(12f)
+                : new Font(FONT_NAME, Font.PLAIN, 12);
+        g2.setFont(font);
+        FontMetrics fm = g2.getFontMetrics();
+
+        int textW = fm.stringWidth(text);
+        int padH  = 14;                                 // 水平内边距
+        int padV  = 8;                                  // 垂直内边距
+        int boxW  = textW + padH * 2;
+        int boxH  = fm.getHeight() + padV * 2;
+        int x = 15;
+        int y = h - boxH - 15;
+
+        // 底框
+        g2.setColor(new Color(255, 255, 255, 235));
+        g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
+        g2.setColor(new Color(180, 180, 180));
+        g2.drawRoundRect(x, y, boxW, boxH, 10, 10);
+
+        // 文字水平居中：左边距 = (boxW - textW) / 2
+        int textX = x + (boxW - textW) / 2;
+        // 文字垂直居中：基线 = 框顶 + (框高 + ascent - descent) / 2
+        int textY = y + (boxH + fm.getAscent() - fm.getDescent()) / 2;
+
         g2.setColor(TEXT_COLOR);
-        g2.drawString("选中节点", swatchX + swatchW + 8, lineY);
+        g2.drawString(text, textX, textY);
     }
 
     // ============================================================
@@ -414,29 +569,47 @@ public class GraphPanel extends JPanel {
     }
 
     // ============================================================
-    // ================= 双击节点显示信息 =========================
+    // ==================== 坐标与命中工具 ========================
     // ============================================================
 
-    private void showNodeInfo(int mouseX, int mouseY) {
-        if (graph == null || nodePositions.isEmpty()) return;
+    private Point2D.Double toModel(int screenX, int screenY) {
+        return new Point2D.Double((screenX - offsetX) / scale,
+                                  (screenY - offsetY) / scale);
+    }
 
-        String hit = null;
+    private String hitNode(Point2D.Double modelPt) {
+        if (nodePositions.isEmpty()) return null;
         for (Map.Entry<String, Point2D.Double> entry : nodePositions.entrySet()) {
             Point2D.Double p = entry.getValue();
             double halfW = estimateNodeWidth(entry.getKey()) / 2.0;
             double halfH = NODE_RADIUS;
-            if (Math.abs(mouseX - p.x) <= halfW && Math.abs(mouseY - p.y) <= halfH) {
-                hit = entry.getKey();
-                break;
+            if (Math.abs(modelPt.x - p.x) <= halfW
+                    && Math.abs(modelPt.y - p.y) <= halfH) {
+                return entry.getKey();
             }
         }
+        return null;
+    }
+
+    private static double clamp(double v, double lo, double hi) {
+        return v < lo ? lo : (v > hi ? hi : v);
+    }
+
+    // ============================================================
+    // ================= 双击节点显示信息 =========================
+    // ============================================================
+
+    private void showNodeInfo(int screenX, int screenY) {
+        if (graph == null || nodePositions.isEmpty()) return;
+
+        Point2D.Double mp = toModel(screenX, screenY);
+        String hit = hitNode(mp);
         if (hit == null) return;
 
         int inDeg  = graph.getInDegree(hit);
         int outDeg = graph.getOutDegree(hit);
         List<String> succ = graph.getSuccessors(hit);
 
-        // 自己算先修（A 的 Graph 尚未提供 getPredecessors）
         List<String> preds = new ArrayList<>();
         for (String other : graph.getVertexNames()) {
             if (graph.getSuccessors(other).contains(hit)) {
@@ -463,7 +636,6 @@ public class GraphPanel extends JPanel {
 
     public static void main(String[] args) {
         Graph g = new Graph();
-        // 任务书图1 的课程关系
         g.addEdge("MA140", "MA141");
         g.addEdge("MA140", "CS150");
         g.addEdge("MA141", "CS150");
@@ -487,12 +659,15 @@ public class GraphPanel extends JPanel {
 
         JButton btnLayered  = new JButton("分层布局");
         JButton btnCircular = new JButton("环形布局");
+        JButton btnReset    = new JButton("重置视图");
         btnLayered.addActionListener(e  -> panel.switchLayout(LayoutManager.LAYOUT_LAYERED));
         btnCircular.addActionListener(e -> panel.switchLayout(LayoutManager.LAYOUT_CIRCULAR));
+        btnReset.addActionListener(e    -> panel.resetView());
 
         JPanel top = new JPanel();
         top.add(btnLayered);
         top.add(btnCircular);
+        top.add(btnReset);
 
         JFrame frame = new JFrame("GraphPanel 测试");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
