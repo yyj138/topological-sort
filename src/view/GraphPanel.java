@@ -21,12 +21,16 @@ import java.util.Map;
 
 /**
  * 关系图绘制组件（组员 C）
- * - 圆角矩形节点 + 宽度随文本自适应
- * - 分层布局（T-C2）/ 环形布局（T-C3 兜底）可切换
- * - 高亮：环路径（红）、选中拓扑序（绿）、选中单节点（黄）
- * - 导出 PNG（中文不乱码）、双击节点显示入度/出度/先修/后继
- * 接口对齐 MainController：setGraph / setHighlightedCycle / setSelectedOrder /
- *                            setSelectedNode / switchLayout / exportPNG
+ * ------------------------------------------------------------
+ * T-C1：圆角矩形节点 + 宽度自适应 + 有向箭头 + 三种高亮 + 双击查看信息
+ * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
+ * T-C3：环形布局兜底 + switchLayout 布局切换入口
+ * T-C5：exportPNG 导出画布（含背景、节点、边、图例），中文不乱码
+ * ------------------------------------------------------------
+ * 接口对齐 MainController：
+ *   setGraph / setHighlightedCycle / setSelectedOrder / exportPNG
+ * 供 B 调用扩展接口：
+ *   setSelectedNode / switchLayout
  */
 public class GraphPanel extends JPanel {
 
@@ -93,6 +97,7 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
+    /** 供 ResultPanel 单击某条序列时调用，高亮单个节点 */
     public void setSelectedNode(String nodeName) {
         this.selectedNode = nodeName;
         repaint();
@@ -123,7 +128,7 @@ public class GraphPanel extends JPanel {
     }
 
     // ============================================================
-    // ============ 节点宽度估算（GraphPanel 与 LayoutManager 共用）===
+    // ========== 节点宽度估算（GraphPanel 与 LayoutManager 共用）===
     // ============================================================
 
     /** 中文按 14px、英文数字按 8px，最少 NODE_RADIUS*2 */
@@ -166,6 +171,7 @@ public class GraphPanel extends JPanel {
         recomputeLayout(w, h);
         drawEdges(g2);
         drawNodes(g2);
+        drawLegend(g2, w, h);   // T-C5 要求画布含图例
     }
 
     // ============================================================
@@ -330,6 +336,69 @@ public class GraphPanel extends JPanel {
     }
 
     // ============================================================
+    // ====================== 绘制图例 ===========================
+    // ============================================================
+
+    /** 右上角绘制图例，说明颜色含义（T-C5 要求画布含图例） */
+    private void drawLegend(Graphics2D g2, int w, int h) {
+        int boxW = 160, boxH = 118;
+        int x = w - boxW - 15;
+        int y = 15;
+
+        // 半透明白底
+        g2.setColor(new Color(255, 255, 255, 235));
+        g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
+        g2.setColor(new Color(180, 180, 180));
+        g2.setStroke(new BasicStroke(1f));
+        g2.drawRoundRect(x, y, boxW, boxH, 10, 10);
+
+        Font font = getFont() != null ? getFont().deriveFont(12f)
+                : new Font(FONT_NAME, Font.PLAIN, 12);
+        g2.setFont(font);
+
+        int swatchX = x + 12;
+        int swatchW = 18;
+        int swatchH = 14;
+        int lineY = y + 22;
+        int lineGap = 24;
+
+        // 1) 普通节点
+        g2.setColor(NODE_FILL);
+        g2.fillRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        g2.setColor(NODE_BORDER);
+        g2.drawRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        g2.setColor(TEXT_COLOR);
+        g2.drawString("普通节点", swatchX + swatchW + 8, lineY);
+
+        // 2) 环路径
+        lineY += lineGap;
+        g2.setColor(CYCLE_FILL);
+        g2.fillRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        g2.setColor(CYCLE_BORDER);
+        g2.drawRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        g2.setColor(TEXT_COLOR);
+        g2.drawString("环路径", swatchX + swatchW + 8, lineY);
+
+        // 3) 拓扑序
+        lineY += lineGap;
+        g2.setColor(ORDER_FILL);
+        g2.fillRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        g2.setColor(ORDER_BORDER);
+        g2.drawRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        g2.setColor(TEXT_COLOR);
+        g2.drawString("拓扑序", swatchX + swatchW + 8, lineY);
+
+        // 4) 选中节点
+        lineY += lineGap;
+        g2.setColor(SELECT_FILL);
+        g2.fillRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        g2.setColor(SELECT_BORDER);
+        g2.drawRoundRect(swatchX, lineY - swatchH + 2, swatchW, swatchH, 5, 5);
+        g2.setColor(TEXT_COLOR);
+        g2.drawString("选中节点", swatchX + swatchW + 8, lineY);
+    }
+
+    // ============================================================
     // =================== 环高亮的边判断 =========================
     // ============================================================
 
@@ -367,6 +436,7 @@ public class GraphPanel extends JPanel {
         int outDeg = graph.getOutDegree(hit);
         List<String> succ = graph.getSuccessors(hit);
 
+        // 自己算先修（A 的 Graph 尚未提供 getPredecessors）
         List<String> preds = new ArrayList<>();
         for (String other : graph.getVertexNames()) {
             if (graph.getSuccessors(other).contains(hit)) {
@@ -393,6 +463,7 @@ public class GraphPanel extends JPanel {
 
     public static void main(String[] args) {
         Graph g = new Graph();
+        // 任务书图1 的课程关系
         g.addEdge("MA140", "MA141");
         g.addEdge("MA140", "CS150");
         g.addEdge("MA141", "CS150");
