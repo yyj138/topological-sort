@@ -21,16 +21,17 @@ import java.util.Map;
 
 /**
  * 关系图绘制组件（组员 C）
- * - 圆角矩形节点 + 宽度自适应
- * - 环形静态布局（含环图兜底）
- * - 支持高亮环路径（红）、高亮选中拓扑序（绿）、高亮选中节点（黄）
- * - 支持导出 PNG（中文不乱码）
- * - 双击节点显示入度/出度/先修/后继课程信息
- * 接口对齐 MainController：setGraph / setHighlightedCycle / setSelectedOrder / exportPNG
+ * - 圆角矩形节点 + 宽度随文本自适应
+ * - 分层布局（T-C2）/ 环形布局（T-C3 兜底）可切换
+ * - 高亮：环路径（红）、选中拓扑序（绿）、选中单节点（黄）
+ * - 导出 PNG（中文不乱码）、双击节点显示入度/出度/先修/后继
+ * 接口对齐 MainController：setGraph / setHighlightedCycle / setSelectedOrder /
+ *                            setSelectedNode / switchLayout / exportPNG
  */
 public class GraphPanel extends JPanel {
 
-    private static final int NODE_RADIUS = 26;
+    public static final int NODE_RADIUS = 26;
+
     private static final Color NODE_FILL    = new Color(232, 240, 254);
     private static final Color NODE_BORDER  = new Color(70, 130, 180);
     private static final Color CYCLE_FILL   = new Color(255, 225, 225);
@@ -48,13 +49,14 @@ public class GraphPanel extends JPanel {
     private Graph graph;
     private List<String> highlightedCycle = new ArrayList<>();
     private List<String> selectedOrder    = new ArrayList<>();
-    private String selectedNode = null; // 选中的单个节点（高亮黄色）
+    private String selectedNode = null;
 
+    private final LayoutManager layoutManager = new LayoutManager();
     private final Map<String, Point2D.Double> nodePositions = new LinkedHashMap<>();
 
     public GraphPanel() {
         setBackground(Color.WHITE);
-        setPreferredSize(new Dimension(800, 600));
+        setPreferredSize(new Dimension(900, 650));
         setFont(new Font(FONT_NAME, Font.PLAIN, 13));
 
         // 双击节点显示详细信息
@@ -96,6 +98,12 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
+    /** 供工具栏切换布局：LayoutManager.LAYOUT_LAYERED / LAYOUT_CIRCULAR */
+    public void switchLayout(int mode) {
+        layoutManager.setMode(mode);
+        repaint();
+    }
+
     public void exportPNG(File file) throws IOException {
         int w = getWidth()  > 0 ? getWidth()  : getPreferredSize().width;
         int h = getHeight() > 0 ? getHeight() : getPreferredSize().height;
@@ -112,6 +120,20 @@ public class GraphPanel extends JPanel {
             g2.dispose();
         }
         ImageIO.write(img, "png", file);
+    }
+
+    // ============================================================
+    // ============ 节点宽度估算（GraphPanel 与 LayoutManager 共用）===
+    // ============================================================
+
+    /** 中文按 14px、英文数字按 8px，最少 NODE_RADIUS*2 */
+    public static int estimateNodeWidth(String name) {
+        int w = 0;
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            w += (c > 127) ? 14 : 8;
+        }
+        return Math.max(NODE_RADIUS * 2, w + 24);
     }
 
     // ============================================================
@@ -152,21 +174,9 @@ public class GraphPanel extends JPanel {
 
     private void recomputeLayout(int w, int h) {
         nodePositions.clear();
-        List<String> names = graph.getVertexNames();
-        int n = names.size();
-        if (n == 0) return;
-
-        double cx = w / 2.0;
-        double cy = h / 2.0;
-        double radius = Math.min(w, h) / 2.0 - NODE_RADIUS - 40;
-        radius = Math.max(radius, 80);
-
-        for (int i = 0; i < n; i++) {
-            double angle = 2 * Math.PI * i / n - Math.PI / 2;
-            double x = cx + radius * Math.cos(angle);
-            double y = cy + radius * Math.sin(angle);
-            nodePositions.put(names.get(i), new Point2D.Double(x, y));
-        }
+        if (graph == null) return;
+        Map<String, Point2D.Double> pos = layoutManager.computeLayout(graph, w, h, NODE_RADIUS);
+        nodePositions.putAll(pos);
     }
 
     // ============================================================
@@ -199,13 +209,15 @@ public class GraphPanel extends JPanel {
                 } else {
                     Point2D.Double p2 = nodePositions.get(to);
                     if (p2 == null) continue;
-                    drawArrow(g2, p1, p2);
+                    drawArrow(g2, p1, p2, from, to);
                 }
             }
         }
     }
 
-    private void drawArrow(Graphics2D g2, Point2D.Double from, Point2D.Double to) {
+    /** 从源/目标矩形的边缘出发画箭头，避免穿过节点本体 */
+    private void drawArrow(Graphics2D g2, Point2D.Double from, Point2D.Double to,
+                           String fromName, String toName) {
         double dx = to.x - from.x;
         double dy = to.y - from.y;
         double len = Math.hypot(dx, dy);
@@ -214,12 +226,18 @@ public class GraphPanel extends JPanel {
         double ux = dx / len;
         double uy = dy / len;
 
-        // 箭头起点和终点，向外多延伸一点，避免被圆角矩形挡住
-        double offset = NODE_RADIUS + 4;
-        double sx = from.x + ux * offset;
-        double sy = from.y + uy * offset;
-        double ex = to.x   - ux * offset;
-        double ey = to.y   - uy * offset;
+        double fromHalfW = estimateNodeWidth(fromName) / 2.0;
+        double toHalfW   = estimateNodeWidth(toName) / 2.0;
+        double fromHalfH = NODE_RADIUS;
+        double toHalfH   = NODE_RADIUS;
+
+        double fromOffset = halfExtent(ux, uy, fromHalfW, fromHalfH);
+        double toOffset   = halfExtent(ux, uy, toHalfW,   toHalfH);
+
+        double sx = from.x + ux * fromOffset;
+        double sy = from.y + uy * fromOffset;
+        double ex = to.x   - ux * toOffset;
+        double ey = to.y   - uy * toOffset;
 
         g2.draw(new Line2D.Double(sx, sy, ex, ey));
 
@@ -231,6 +249,13 @@ public class GraphPanel extends JPanel {
         int y2 = (int) Math.round(ey - arrowLen * Math.sin(angle + Math.PI / 7));
         g2.fillPolygon(new int[]{(int) Math.round(ex), x1, x2},
                 new int[]{(int) Math.round(ey), y1, y2}, 3);
+    }
+
+    /** 沿单位方向 (ux,uy) 从矩形中心到矩形边缘的距离 */
+    private double halfExtent(double ux, double uy, double halfW, double halfH) {
+        double tx = (Math.abs(ux) < 1e-6) ? Double.MAX_VALUE : halfW / Math.abs(ux);
+        double ty = (Math.abs(uy) < 1e-6) ? Double.MAX_VALUE : halfH / Math.abs(uy);
+        return Math.min(tx, ty);
     }
 
     private void drawSelfLoop(Graphics2D g2, Point2D.Double center) {
@@ -283,15 +308,11 @@ public class GraphPanel extends JPanel {
                 fill = SELECT_FILL; border = SELECT_BORDER; stroke = 4;
             }
 
-            // 宽度自适应：根据文字长度动态计算宽度
-            int textWidth = fm.stringWidth(name);
-            int minWidth = NODE_RADIUS * 2;
-            int dWidth = Math.max(minWidth, textWidth + 24);
+            int dWidth  = estimateNodeWidth(name);
             int dHeight = NODE_RADIUS * 2;
-
             int x = (int) Math.round(p.x - dWidth / 2.0);
             int y = (int) Math.round(p.y - dHeight / 2.0);
-            int arc = 14; // 圆角半径
+            int arc = 14;
 
             g2.setColor(fill);
             g2.fillRoundRect(x, y, dWidth, dHeight, arc, arc);
@@ -333,10 +354,9 @@ public class GraphPanel extends JPanel {
         String hit = null;
         for (Map.Entry<String, Point2D.Double> entry : nodePositions.entrySet()) {
             Point2D.Double p = entry.getValue();
-            // 因为矩形宽度可能比高度宽，适当放宽 X 轴判断
-            double distX = Math.abs(mouseX - p.x);
-            double distY = Math.abs(mouseY - p.y);
-            if (distX <= NODE_RADIUS + 15 && distY <= NODE_RADIUS) {
+            double halfW = estimateNodeWidth(entry.getKey()) / 2.0;
+            double halfH = NODE_RADIUS;
+            if (Math.abs(mouseX - p.x) <= halfW && Math.abs(mouseY - p.y) <= halfH) {
                 hit = entry.getKey();
                 break;
             }
@@ -347,7 +367,6 @@ public class GraphPanel extends JPanel {
         int outDeg = graph.getOutDegree(hit);
         List<String> succ = graph.getSuccessors(hit);
 
-        // 自己算出先修课程（因为 A 的 Graph 类还没有 getPredecessors）
         List<String> preds = new ArrayList<>();
         for (String other : graph.getVertexNames()) {
             if (graph.getSuccessors(other).contains(hit)) {
@@ -375,24 +394,42 @@ public class GraphPanel extends JPanel {
     public static void main(String[] args) {
         Graph g = new Graph();
         g.addEdge("MA140", "MA141");
+        g.addEdge("MA140", "CS150");
         g.addEdge("MA141", "CS150");
-        g.addEdge("MA141", "CS225");
         g.addEdge("CS150", "CS155");
         g.addEdge("CS155", "CS200");
         g.addEdge("CS155", "CS225");
         g.addEdge("CS200", "CS230");
+        g.addEdge("CS225", "CS230");
         g.addEdge("CS225", "CS300");
+        g.addEdge("CS225", "CS250");
+        g.addEdge("CS230", "CS301");
+        g.addEdge("CS300", "CS340");
+        g.addEdge("CS340", "CS345");
+        g.addEdge("CS345", "CS350");
+        g.addEdge("CS350", "CS360");
+        g.addEdge("CS360", "CS390");
 
         GraphPanel panel = new GraphPanel();
         panel.setGraph(g);
         panel.setSelectedOrder(Arrays.asList("MA140", "MA141", "CS150"));
-        panel.setSelectedNode("MA140"); // 测试选中高亮
+
+        JButton btnLayered  = new JButton("分层布局");
+        JButton btnCircular = new JButton("环形布局");
+        btnLayered.addActionListener(e  -> panel.switchLayout(LayoutManager.LAYOUT_LAYERED));
+        btnCircular.addActionListener(e -> panel.switchLayout(LayoutManager.LAYOUT_CIRCULAR));
+
+        JPanel top = new JPanel();
+        top.add(btnLayered);
+        top.add(btnCircular);
 
         JFrame frame = new JFrame("GraphPanel 测试");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(900, 700);
+        frame.setSize(1000, 750);
         frame.setLocationRelativeTo(null);
-        frame.setContentPane(panel);
+        frame.setLayout(new BorderLayout());
+        frame.add(top, BorderLayout.NORTH);
+        frame.add(panel, BorderLayout.CENTER);
         frame.setVisible(true);
     }
 }
