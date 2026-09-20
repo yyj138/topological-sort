@@ -203,7 +203,7 @@ public class MainController {
         frame.getResultPanel().setResults(sequences);
 
         if (!sequences.isEmpty()) {
-            frame.getGraphPanel().setSelectedOrder(sequences.get(0));
+        // 不自动高亮第一条，等用户单击结果时再高亮
         }
         frame.getStatusBar().updateStats(
                 graph.getVertexCount(), graph.getEdgeCount(),
