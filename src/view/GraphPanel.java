@@ -119,10 +119,15 @@ public class GraphPanel extends JPanel {
                 if (e.getClickCount() == 2) {
                     showNodeInfo(e.getX(), e.getY());
                 } else if (SwingUtilities.isRightMouseButton(e)) {
-                    // 右键点击节点 -> 单节点黄色高亮
+                } else if (SwingUtilities.isRightMouseButton(e)) {
+                    // 右键点击节点 -> 单节点黄色高亮；再点同一个取消
                     Point2D.Double mp = toModel(e.getX(), e.getY());
                     String hit = hitNode(mp);
-                    setSelectedNode(hit);
+                    if (hit != null && hit.equals(selectedNode)) {
+                        setSelectedNode(null);
+                    } else {
+                        setSelectedNode(hit);
+                    }
                     repaint();
                 }
             }
