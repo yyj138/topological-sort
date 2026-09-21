@@ -84,12 +84,17 @@ public class GraphPanel extends JPanel {
         setSelectedOrder(order, 0);
     }
 
-    // 新增重载：resultIndex 为被点结果的全局序号，决定高亮颜色；负数按 0 处理
-    public void setSelectedOrder(List<String> order, int resultIndex) {
+    // 双参数版本：colorIndex 为颜色序号，按五种颜色循环
+    public void setSelectedOrder(List<String> order, int colorIndex) {
         this.selectedOrder = (order != null) ? new ArrayList<>(order) : new ArrayList<>();
         this.selectedColorIndex =
-                Math.floorMod(resultIndex, ORDER_FILLS.length);
+                Math.floorMod(colorIndex, ORDER_FILLS.length);
         repaint();
+    }
+
+    // 预留接口：单节点黄色高亮，调用方传入当前图中的节点名称，传入 null 表示清除
+    public void setSelectedNode(String nodeName) {
+        // 预留，暂不实现
     }
 
     public void exportPNG(File file) throws IOException {
