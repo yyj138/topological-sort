@@ -29,7 +29,7 @@ import java.util.Map;
  * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
  * T-C3：环形布局兜底 + switchLayout 切换入口 + 拓扑序 5 色轮换
  * T-C4：滚轮缩放（以鼠标为中心）、拖拽平移、拖动节点、显示缩放比例
- * T-C5：exportPNG 导出画布（含图例），中文不乱码；导出完整关系图
+ * T-C5：exportPNG 导出完整关系图（含图例），中文不乱码，且图例不遮挡节点
  * ------------------------------------------------------------
  * 接口对齐 MainController：
  *   setGraph / setHighlightedCycle / setSelectedOrder(list[, idx]) / exportPNG
@@ -211,15 +211,15 @@ public class GraphPanel extends JPanel {
     public double getScale() { return scale; }
 
     /**
-     * T-C5：导出画布为 PNG（修复版）
+     * T-C5：导出完整关系图为 PNG（修复版：图例不遮挡节点）
      * ---------------------------------------------------------
      * 行为约定（契约要求）：导出“完整关系图”，而非仅当前视口。
-     * 因此本方法：
+     * 修复要点：
      *   1) 忽略当前 scale / offsetX / offsetY 视图变换；
-     *   2) 遍历所有节点位置，计算包围盒（含节点宽度、自环向上延伸、边距）；
-     *   3) 按包围盒尺寸创建 BufferedImage，1:1 完整绘制所有节点与边；
-     *   4) 图例叠加在右上角；中文节点名使用微软雅黑，避免乱码；
-     *   5) 空图（graph == null）仍按原行为绘制提示文字。
+     *   2) 计算节点包围盒；
+     *   3) 图片高度 = 节点高度 + 图例高度 + 间距，为图例预留独立顶部空间；
+     *   4) 节点整体向下平移，确保图例在右上角不会遮挡任何节点或自环；
+     *   5) 中文使用微软雅黑，避免乱码。
      */
     public void exportPNG(File file) throws IOException {
         // 1) 确保布局已经基于当前面板尺寸计算完毕，保持用户当前看到的布局
@@ -227,11 +227,16 @@ public class GraphPanel extends JPanel {
         int panelH = getHeight() > 0 ? getHeight() : getPreferredSize().height;
         recomputeLayoutIfNeeded(panelW, panelH);
 
-        // 2) 计算包围盒（含节点自身宽高、自环弧线向上延伸、边距）
+        // 2) 计算包围盒
         final int PADDING = 40;
         // 自环弧线：圆心 y = nodeCenterY - NODE_RADIUS - 14；弧半径 r = NODE_RADIUS + 8；
         // 最高点 y ≈ nodeCenterY - (2*NODE_RADIUS + 22)
         final int SELF_LOOP_TOP_EXTENT = 2 * NODE_RADIUS + 22;
+        // 图例的固定尺寸（与 drawLegend 内部保持一致）
+        final int LEGEND_WIDTH  = 160;
+        final int LEGEND_HEIGHT = 118;
+        // 图例与节点之间的间距
+        final int LEGEND_GAP    = 20;
 
         double minX = 0, minY = 0, maxX = panelW, maxY = panelH;
         boolean hasNodes = (graph != null) && !nodePositions.isEmpty();
@@ -254,13 +259,18 @@ public class GraphPanel extends JPanel {
             }
         }
 
-        int imgW = (int) Math.ceil(maxX - minX);
-        int imgH = (int) Math.ceil(maxY - minY);
-        // 保底尺寸，保证右上角图例（160x118）不越界
+        // 3) 计算图片尺寸：宽度至少能容纳图例，高度额外增加图例高度 + 间距
+        int nodesW = (int) Math.ceil(maxX - minX);
+        int nodesH = (int) Math.ceil(maxY - minY);
+
+        int imgW = Math.max(nodesW, LEGEND_WIDTH + 30);
+        int imgH = nodesH + LEGEND_HEIGHT + LEGEND_GAP;
+
+        // 保底尺寸
         imgW = Math.max(imgW, 500);
         imgH = Math.max(imgH, 400);
 
-        // 3) 创建图片，1:1 完整绘制（不应用 scale / offset）
+        // 4) 创建图片，1:1 完整绘制（不应用 scale / offset）
         BufferedImage img = new BufferedImage(imgW, imgH, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = img.createGraphics();
         try {
@@ -273,9 +283,9 @@ public class GraphPanel extends JPanel {
 
             Graphics2D gBody = (Graphics2D) g2.create();
             try {
-                // 关键：不应用当前 scale / offset，
-                // 直接把包围盒左上角 (minX, minY) 平移到图片原点
-                gBody.translate(-minX, -minY);
+                // 关键：节点整体向下平移 (LEGEND_HEIGHT + LEGEND_GAP) 像素，
+                // 为右上角的图例预留独立的顶部空间，彻底避免遮挡。
+                gBody.translate(-minX, -minY + LEGEND_HEIGHT + LEGEND_GAP);
                 if (graph != null) {
                     drawEdges(gBody);
                     drawNodes(gBody);
@@ -294,7 +304,7 @@ public class GraphPanel extends JPanel {
                 gBody.dispose();
             }
 
-            // 图例叠加在完整图上（右上角）
+            // 图例叠加在完整图的右上角独立空间内
             if (graph != null) {
                 drawLegend(g2, imgW, imgH);
             }
@@ -688,8 +698,11 @@ public class GraphPanel extends JPanel {
         btnReset.addActionListener(e    -> panel.resetView());
         btnExport.addActionListener(e -> {
             try {
-                panel.exportPNG(new File("test_export.png"));
-                System.out.println("导出成功：test_export.png");
+                File out = new File("test_export.png");
+                panel.exportPNG(out);
+                JOptionPane.showMessageDialog(null,
+                        "图片已保存到：\n" + out.getAbsolutePath(),
+                        "导出成功", JOptionPane.INFORMATION_MESSAGE);
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
