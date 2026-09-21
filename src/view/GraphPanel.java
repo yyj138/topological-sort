@@ -116,12 +116,18 @@ public class GraphPanel extends JPanel {
             }
             @Override
             public void mouseClicked(MouseEvent e) {
+                if (!SwingUtilities.isLeftMouseButton(e)) return;
+                Point2D.Double mp = toModel(e.getX(), e.getY());
+                String hit = hitNode(mp);
                 if (e.getClickCount() == 2) {
-                    showNodeInfo(e.getX(), e.getY());
-                } else if (SwingUtilities.isRightMouseButton(e)) {
-                    // 右键点击节点 -> 单节点黄色高亮；再点同一个取消
-                    Point2D.Double mp = toModel(e.getX(), e.getY());
-                    String hit = hitNode(mp);
+                    // 双击节点 -> 复制节点名到剪贴板
+                    if (hit != null) {
+                        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard()
+                            .setContents(new java.awt.datatransfer.StringSelection(hit), null);
+                        javax.swing.JOptionPane.showMessageDialog(GraphPanel.this, "已复制：" + hit);
+                    }
+                } else {
+                    // 左键单击节点 -> 单节点黄色高亮；再点同一个取消
                     if (hit != null && hit.equals(selectedNode)) {
                         setSelectedNode(null);
                     } else {
@@ -147,13 +153,6 @@ public class GraphPanel extends JPanel {
                     dragStartScreen = e.getPoint();
                     repaint();
                 }
-            }
-        });
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                layoutDirty = true;
-                repaint();
             }
         });
     }
