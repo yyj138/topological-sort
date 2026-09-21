@@ -1,5 +1,4 @@
 package test;
-
 import algorithm.AllTopoSorts;
 import algorithm.CycleDetector;
 import algorithm.TopologicalSolver;
@@ -9,7 +8,6 @@ import algorithm.StopReason;
 import io.DataParser;
 import io.ParseResult;
 import model.Graph;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -23,7 +21,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
-
 /**
  * T‑E1：算法四类测试：正确性、边界、异常(环)、性能
  * 遵循接口契约V1.0；项目目标JDK21
@@ -47,11 +44,9 @@ public class AlgorithmTest {
     private int passCount = 0;
     private int failCount = 0;
     private static final BooleanSupplier NEVER_CANCEL = () -> false;
-
     public AlgorithmTest(PrintWriter out) {
         this.out = out;
     }
-
     public static void main(String[] args) {
         File testDir = new File("test");
         if (!testDir.exists()) {
@@ -63,7 +58,6 @@ public class AlgorithmTest {
         // 控制台仍然打印调试信息，但是不写入txt文件
         System.out.println("[DEBUG] JVM工作目录 user.dir = " + userDir);
         System.out.println("[DEBUG] JDK版本 = " + javaVersion);
-
         // figure1 双路径兼容：打包优先data/，开发回退src/data/
         File figureFile;
         File prodPath = new File("data/figure1.txt");
@@ -76,11 +70,9 @@ public class AlgorithmTest {
             figureFile = prodPath;
         }
         final String usedFigurePath = figureFile.getPath();
-
         try (FileOutputStream fos = new FileOutputStream(OUTPUT_FILE, false);
              OutputStreamWriter osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);
              PrintWriter pw = new PrintWriter(osw)) {
-
             AlgorithmTest tester = new AlgorithmTest(pw);
             tester.log("==================== T‑E1 算法测试开始 ====================");
             tester.log("测试时间：本地运行；遵循接口契约V1.0；JDK版本:" + javaVersion);
@@ -88,14 +80,12 @@ public class AlgorithmTest {
             tester.log("读取图1数据文件：" + usedFigurePath);
             // 【改动】移除向txt输出user.dir这一行，控制台System.out保留
             tester.log("");
-
             // ①正确性测试（任务卡：图1 + 3个手算小图）
             tester.log("===== ① 正确性测试 =====");
             tester.testCorrect_ThreeNodeDAG();
             tester.testCorrect_FourNodeBranched();
             tester.testCorrect_ChainDAG();
             tester.testCorrect_FigureOneSample(figureFile);
-
             // ②边界测试
             tester.log("");
             tester.log("===== ② 边界测试 =====");
@@ -103,14 +93,12 @@ public class AlgorithmTest {
             tester.testBoundary_SingleVertex();
             tester.testBoundary_AllIsolated();
             tester.testBoundary_ManySameLayer();
-
             // ③异常‑环测试（3种环）
             tester.log("");
             tester.log("===== ③ 异常‑含环图测试 =====");
             tester.testCycle_SelfLoop();
             tester.testCycle_SimpleTwoNodeCycle();
             tester.testCycle_LongCycle();
-
             // ④接口契约专项校验
             tester.log("");
             tester.log("===== 契约校验：EnumerationResult与入参语义 =====");
@@ -120,29 +108,32 @@ public class AlgorithmTest {
             tester.testContract_NullParams();
             tester.testContract_MaxResultZero();
             tester.testContract_AlgorithmIsolation(); // 新增：算法隔离性补强
-
             // ⑤性能测试：千节点DAG，同时测Kahn、环检测、枚举
             tester.log("");
             tester.log("===== ④ 性能测试：1000节点随机DAG =====");
             tester.testPerformance_1000NodeDAG();
-
             // 汇总
             tester.log("");
             tester.log("==================== 测试汇总 ====================");
             tester.log(String.format("PASS：%d   FAIL：%d", tester.passCount, tester.failCount));
             tester.log("==================================================");
+
+            // 新增：flush缓冲区，System.exit之前刷入磁盘，防止输出截断
+            tester.out.flush();
+            if(tester.failCount > 0){
+                System.exit(1);
+            }
         } catch (IOException e) {
             System.err.println("无法写入输出文件 " + OUTPUT_FILE);
             e.printStackTrace();
+            System.exit(2);
         }
     }
-
     // ------------------------------工具方法------------------------------
     private void log(String msg) {
         System.out.println(msg);
         out.println(msg);
     }
-
     private void assertTrue(String caseName, boolean condition) {
         if (condition) {
             log(String.format("[PASS] %s", caseName));
@@ -152,7 +143,6 @@ public class AlgorithmTest {
             failCount++;
         }
     }
-
     /**
      * 【增强版拓扑合法性校验】
      * 1. 全部边from必须在to前面；
@@ -179,7 +169,6 @@ public class AlgorithmTest {
         }
         return true;
     }
-
     /**
      * 校验环路径：闭合，并且每一对相邻节点在原图确实存在边
      * 注意：调用方外层必须先断言 cycle 不为空
@@ -197,7 +186,6 @@ public class AlgorithmTest {
         }
         return true;
     }
-
     // ------------------------------①正确性测试------------------------------
     /** 手算小图1：3节点DAG A→B，A→C，合法拓扑共2条 */
     void testCorrect_ThreeNodeDAG() {
@@ -213,7 +201,6 @@ public class AlgorithmTest {
                 && enumRes.getStopReason() == StopReason.COMPLETED;
         assertTrue("正确性‑3节点DAG", kahnOk && enumAllValid && enumMetaOk);
     }
-
     /** 手算小图2：4节点分叉DAG A→B,A→C,B→D,C→D；合法拓扑共2条 */
     void testCorrect_FourNodeBranched() {
         Graph g = new Graph();
@@ -230,7 +217,6 @@ public class AlgorithmTest {
                 && enumRes.getStopReason() == StopReason.COMPLETED;
         assertTrue("正确性‑4节点分叉DAG", kahnOk && enumAllValid && enumMetaOk);
     }
-
     /** 手算小图3：链式A→B→C→D，唯一拓扑 */
     void testCorrect_ChainDAG() {
         Graph g = new Graph();
@@ -247,7 +233,6 @@ public class AlgorithmTest {
                 && enumRes.getSequences().get(0).equals(List.of("A", "B", "C", "D"));
         assertTrue("正确性‑链式DAG(唯一拓扑)", kahnOk && enumAllValid && enumMetaOk);
     }
-
     /** 图1课程图：增加枚举比对；增加顶点/边/warnings断言；补强枚举meta状态校验 */
     void testCorrect_FigureOneSample(File figureFile) {
         if (!figureFile.exists()) {
@@ -286,7 +271,6 @@ public class AlgorithmTest {
         List<String> cyclePath = new CycleDetector().findCycle(g);
         // 任务卡要求：比对 Kahn 与枚举结果，调用enumerate
         EnumerationResult enumRes = new AllTopoSorts().enumerate(g, 1000, 0, NEVER_CANCEL);
-
         boolean kahnOk = !topoRes.hasCycle() && isTopoOrderValid(g, topoRes.getOrder());
         boolean noCycle = cyclePath.isEmpty();
         boolean enumNoCycle = enumRes.getStopReason() != StopReason.CYCLE;
@@ -298,14 +282,11 @@ public class AlgorithmTest {
         } else {
             enumMetaOk = enumRes.isComplete();
         }
-
         log("    图1课程图 Kahn序列长度：" + topoRes.getOrder().size());
         log("    图1课程图环检测返回：" + cyclePath);
         log("    图1枚举：generated=" + enumRes.getGeneratedCount() + " stop=" + enumRes.getStopReason());
-
         assertTrue("正确性‑图1课程先修图", kahnOk && noCycle && enumNoCycle && enumAllValid && enumMetaOk);
     }
-
     // ------------------------------②边界测试------------------------------
     void testBoundary_EmptyGraph() {
         Graph g = new Graph();
@@ -321,7 +302,6 @@ public class AlgorithmTest {
                 && enumRes.getSequences().get(0).isEmpty();
         assertTrue("边界‑空图", ok);
     }
-
     void testBoundary_SingleVertex() {
         Graph g = new Graph();
         g.addVertex("X");
@@ -337,7 +317,6 @@ public class AlgorithmTest {
                 && enumRes.getSequences().contains(List.of("X"));
         assertTrue("边界‑单节点无边", ok);
     }
-
     void testBoundary_AllIsolated() {
         Graph g = new Graph();
         g.addVertex("P");
@@ -352,7 +331,6 @@ public class AlgorithmTest {
         boolean enumAllValid = enumRes.getSequences().stream().allMatch(s -> isTopoOrderValid(g, s));
         assertTrue("边界‑全部孤立节点", kahnOk && noCycle && enumMetaOk && enumAllValid);
     }
-
     /** 大量同层：A/B/C/E/F/G（6个）全部指向D，合法总数 6! =720 */
     void testBoundary_ManySameLayer() {
         Graph g = new Graph();
@@ -372,7 +350,6 @@ public class AlgorithmTest {
                 && enumRes.getStopReason() == StopReason.COMPLETED;
         assertTrue("边界‑大量同层零入度节点", kahnOk && enumAllValid && enumMetaOk);
     }
-
     // ------------------------------③环测试：修复假PASS漏洞------------------------------
     void testCycle_SelfLoop() {
         Graph g = new Graph();
@@ -386,13 +363,10 @@ public class AlgorithmTest {
                 && cyclePath.equals(List.of("A", "A"))
                 && isCyclePathValid(g, cyclePath);
         boolean kahnOrderEmpty = topo.getOrder().isEmpty();
-
         EnumerationResult enumRes = new AllTopoSorts().enumerate(g, 1000, 0, NEVER_CANCEL);
         boolean enumRejectCycle = enumRes.getStopReason() == StopReason.CYCLE && enumRes.getGeneratedCount() == 0;
-
         assertTrue("环‑自环A→A", hasCycleFlag && pathOk && kahnOrderEmpty && enumRejectCycle);
     }
-
     void testCycle_SimpleTwoNodeCycle() {
         Graph g = new Graph();
         g.addEdge("A", "B");
@@ -400,7 +374,6 @@ public class AlgorithmTest {
         TopoResult topo = new TopologicalSolver().kahnSort(g);
         List<String> cyclePath = new CycleDetector().findCycle(g);
         EnumerationResult enumRes = new AllTopoSorts().enumerate(g, 1000, 0, NEVER_CANCEL);
-
         boolean hasCycle = topo.hasCycle();
         // 修复：环路径不能为空；Kahn返回空序列
         boolean pathOk = cyclePath != null
@@ -409,10 +382,8 @@ public class AlgorithmTest {
                 && isCyclePathValid(g, cyclePath);
         boolean kahnOrderEmpty = topo.getOrder().isEmpty();
         boolean enumStopCycle = enumRes.getStopReason() == StopReason.CYCLE && enumRes.getGeneratedCount() == 0;
-
         assertTrue("环‑两节点互环", hasCycle && pathOk && kahnOrderEmpty && enumStopCycle);
     }
-
     void testCycle_LongCycle() {
         Graph g = new Graph();
         g.addEdge("A", "B");
@@ -421,7 +392,6 @@ public class AlgorithmTest {
         TopoResult topo = new TopologicalSolver().kahnSort(g);
         List<String> cyclePath = new CycleDetector().findCycle(g);
         EnumerationResult enumRes = new AllTopoSorts().enumerate(g, 1000, 0, NEVER_CANCEL);
-
         boolean hasCycle = topo.hasCycle();
         boolean pathOk = cyclePath != null
                 && !cyclePath.isEmpty()
@@ -429,10 +399,8 @@ public class AlgorithmTest {
                 && isCyclePathValid(g, cyclePath);
         boolean kahnOrderEmpty = topo.getOrder().isEmpty();
         boolean enumStopCycle = enumRes.getStopReason() == StopReason.CYCLE && enumRes.getGeneratedCount() == 0;
-
         assertTrue("环‑三节点长环", hasCycle && pathOk && kahnOrderEmpty && enumStopCycle);
     }
-
     // ------------------------------④契约校验增强------------------------------
     void testContract_ResultCompleteFlag() {
         Graph g = new Graph();
@@ -440,16 +408,13 @@ public class AlgorithmTest {
         g.addEdge("B", "C");
         EnumerationResult resLimit = new AllTopoSorts().enumerate(g, 1, 0, NEVER_CANCEL);
         boolean caseLimit = resLimit.getStopReason() == StopReason.LIMIT_REACHED && !resLimit.isComplete();
-
         Graph gCycle = new Graph();
         gCycle.addEdge("X", "Y");
         gCycle.addEdge("Y", "X");
         EnumerationResult resCycle = new AllTopoSorts().enumerate(gCycle, 1000, 0, NEVER_CANCEL);
         boolean caseCycle = resCycle.getStopReason() == StopReason.CYCLE && !resCycle.isComplete();
-
         assertTrue("契约‑EnumerationResult.isComplete语义", caseLimit && caseCycle);
     }
-
     void testContract_ResultMetaConsistency() {
         Graph g = new Graph();
         g.addEdge("A", "B");
@@ -474,7 +439,6 @@ public class AlgorithmTest {
         }
         assertTrue("契约‑返回元数据与不可修改集合", countMatch && outerUnModifiable && innerSeqUnModifiable);
     }
-
     void testContract_IllegalArguments() {
         Graph g = new Graph();
         boolean exMaxNeg;
@@ -493,7 +457,6 @@ public class AlgorithmTest {
         }
         assertTrue("契约‑非法入参抛出异常", exMaxNeg && exTimeNeg);
     }
-
     /** 新增契约：null graph / null cancelled 必须抛异常 */
     void testContract_NullParams() {
         boolean exNullGraph;
@@ -513,7 +476,6 @@ public class AlgorithmTest {
         }
         assertTrue("契约‑null入参拒绝", exNullGraph && exNullCancelled);
     }
-
     /** 新增契约：maxResults=0 代表不限制数量 */
     void testContract_MaxResultZero() {
         Graph g = new Graph();
@@ -524,7 +486,6 @@ public class AlgorithmTest {
                 && resZero.getGeneratedCount() == 1;
         assertTrue("契约‑maxResults=0不限制结果", ok);
     }
-
     /**
      * 【可选补强契约，不属于T‑E1任务卡强制验收项】
      * 校验：1.枚举不会修改原图入度；2.同一图两次调用结果一致；3.返回各序列是独立对象引用
@@ -535,7 +496,6 @@ public class AlgorithmTest {
         g.addEdge("A", "C");
         Map<String, Integer> beforeInDegree = g.getVertexNames().stream()
                 .collect(Collectors.toMap(v -> v, g::getInDegree));
-
         EnumerationResult res1 = new AllTopoSorts().enumerate(g, 1000, 0, NEVER_CANCEL);
         // 校验原图入度完全不变
         boolean graphNotModified = true;
@@ -562,7 +522,6 @@ public class AlgorithmTest {
         assertTrue("契约‑算法隔离性(原图不变/多次调用稳定/序列独立)",
                 graphNotModified && twoCallEqual && seqObjectIndependent);
     }
-
     // ------------------------------⑤性能测试------------------------------
     void testPerformance_1000NodeDAG() {
         Graph g = new Graph();
@@ -582,18 +541,14 @@ public class AlgorithmTest {
         long t1 = System.currentTimeMillis();
         new TopologicalSolver().kahnSort(g);
         long costKahn = System.currentTimeMillis() - t1;
-
         long t2 = System.currentTimeMillis();
         new CycleDetector().findCycle(g);
         long costCycle = System.currentTimeMillis() - t2;
-
         long t3 = System.currentTimeMillis();
         EnumerationResult enumRes = new AllTopoSorts().enumerate(g, 1000, 0, NEVER_CANCEL);
         long costEnum = System.currentTimeMillis() - t3;
-
         log(String.format("    1000节点DAG，边数=%d；Kahn耗时=%d ms；环检测耗时=%d ms；枚举耗时=%d ms；已生成序列数量=%d；停止原因=%s",
                 g.getEdgeCount(), costKahn, costCycle, costEnum, enumRes.getGeneratedCount(), enumRes.getStopReason()));
-
         // 补强：LIMIT_REACHED必须正好生成1000条
         boolean ok;
         if (enumRes.getStopReason() == StopReason.LIMIT_REACHED) {
