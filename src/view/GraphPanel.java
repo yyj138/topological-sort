@@ -27,12 +27,12 @@ import java.util.Map;
  * ------------------------------------------------------------
  * T-C1：圆角矩形节点 + 宽度自适应 + 有向箭头 + 三种高亮 + 双击查看信息
  * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
- * T-C3：环形布局兜底 + switchLayout 布局切换入口
+ * T-C3：环形布局兜底 + switchLayout 切换入口 + 拓扑序 5 色轮换
  * T-C4：滚轮缩放（以鼠标为中心）、拖拽平移、拖动节点、显示缩放比例
  * T-C5：exportPNG 导出画布（含图例），中文不乱码
  * ------------------------------------------------------------
  * 接口对齐 MainController：
- *   setGraph / setHighlightedCycle / setSelectedOrder / exportPNG
+ *   setGraph / setHighlightedCycle / setSelectedOrder(list[, idx]) / exportPNG
  * 供 B 调用扩展接口：
  *   setSelectedNode / switchLayout / resetView / getScale
  */
@@ -52,8 +52,16 @@ public class GraphPanel extends JPanel {
     private static final Color CYCLE_EDGE   = new Color(214, 48, 49);
     private static final Color TEXT_COLOR   = new Color(33, 33, 33);
 
-    private static final String FONT_NAME = "Microsoft YaHei";
+    /** T-C3 拓扑序 5 色轮换色板（B 的需求：点不同结果行颜色不同） */
+    private static final Color[][] ORDER_PALETTE = {
+        { new Color(225, 255, 225), new Color( 39, 174,  96) },
+        { new Color(255, 240, 220), new Color(230, 126,  34) },
+        { new Color(225, 235, 255), new Color( 41, 128, 185) },
+        { new Color(245, 225, 255), new Color(142,  68, 173) },
+        { new Color(255, 225, 235), new Color(192,  57,  43) },
+    };
 
+    private static final String FONT_NAME = "Microsoft YaHei";
     private static final double MIN_SCALE = 0.3;
     private static final double MAX_SCALE = 3.0;
 
@@ -62,6 +70,9 @@ public class GraphPanel extends JPanel {
     private List<String> selectedOrder    = new ArrayList<>();
     private String selectedNode = null;
 
+    /** T-C3：当前拓扑序颜色序号 */
+    private int selectedOrderColorIndex = 0;
+
     private final LayoutManager layoutManager = new LayoutManager();
     private final Map<String, Point2D.Double> nodePositions = new LinkedHashMap<>();
 
@@ -69,7 +80,6 @@ public class GraphPanel extends JPanel {
     private double scale    = 1.0;
     private double offsetX  = 0;
     private double offsetY  = 0;
-
     private boolean layoutDirty = true;
 
     // T-C4 拖拽状态
@@ -88,7 +98,6 @@ public class GraphPanel extends JPanel {
             public void mousePressed(MouseEvent e) {
                 if (!SwingUtilities.isLeftMouseButton(e)) return;
                 if (e.getClickCount() >= 2) return;
-
                 Point2D.Double mp = toModel(e.getX(), e.getY());
                 String hit = hitNode(mp);
                 if (hit != null) {
@@ -100,20 +109,14 @@ public class GraphPanel extends JPanel {
                     dragStartScreen = e.getPoint();
                 }
             }
-
             @Override
             public void mouseReleased(MouseEvent e) {
-                dragNode = null;
-                dragStartScreen = null;
-                dragStartModel = null;
-                dragNodeStartPos = null;
+                dragNode = null; dragStartScreen = null;
+                dragStartModel = null; dragNodeStartPos = null;
             }
-
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    showNodeInfo(e.getX(), e.getY());
-                }
+                if (e.getClickCount() == 2) showNodeInfo(e.getX(), e.getY());
             }
         });
 
@@ -140,9 +143,7 @@ public class GraphPanel extends JPanel {
             double oldScale = scale;
             scale = clamp(scale + delta, MIN_SCALE, MAX_SCALE);
             if (Math.abs(scale - oldScale) < 1e-9) return;
-
-            double mx = e.getX();
-            double my = e.getY();
+            double mx = e.getX(), my = e.getY();
             double factor = scale / oldScale;
             offsetX = mx - (mx - offsetX) * factor;
             offsetY = my - (my - offsetY) * factor;
@@ -167,6 +168,7 @@ public class GraphPanel extends JPanel {
         this.highlightedCycle = new ArrayList<>();
         this.selectedOrder = new ArrayList<>();
         this.selectedNode = null;
+        this.selectedOrderColorIndex = 0;
         this.nodePositions.clear();
         this.layoutDirty = true;
         this.resetView();
@@ -179,6 +181,14 @@ public class GraphPanel extends JPanel {
 
     public void setSelectedOrder(List<String> order) {
         this.selectedOrder = (order != null) ? new ArrayList<>(order) : new ArrayList<>();
+        this.selectedOrderColorIndex = 0;
+        repaint();
+    }
+
+    /** T-C3 重载：带颜色序号，B 的 MainController 调用契约 */
+    public void setSelectedOrder(List<String> order, int colorIndex) {
+        this.selectedOrder = (order != null) ? new ArrayList<>(order) : new ArrayList<>();
+        this.selectedOrderColorIndex = colorIndex;
         repaint();
     }
 
@@ -194,9 +204,7 @@ public class GraphPanel extends JPanel {
     }
 
     public void resetView() {
-        scale = 1.0;
-        offsetX = 0;
-        offsetY = 0;
+        scale = 1.0; offsetX = 0; offsetY = 0;
         repaint();
     }
 
@@ -205,7 +213,6 @@ public class GraphPanel extends JPanel {
     public void exportPNG(File file) throws IOException {
         int w = getWidth()  > 0 ? getWidth()  : getPreferredSize().width;
         int h = getHeight() > 0 ? getHeight() : getPreferredSize().height;
-
         BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = img.createGraphics();
         try {
@@ -213,13 +220,11 @@ public class GraphPanel extends JPanel {
             g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g2.setColor(Color.WHITE);
             g2.fillRect(0, 0, w, h);
-
             Graphics2D gBody = (Graphics2D) g2.create();
             gBody.translate(offsetX, offsetY);
             gBody.scale(scale, scale);
             drawGraph(gBody, w, h);
             gBody.dispose();
-
             if (graph != null) drawLegend(g2, w, h);
         } finally {
             g2.dispose();
@@ -247,19 +252,15 @@ public class GraphPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-
         if (graph == null) {
             Graphics2D g2 = (Graphics2D) g.create();
             try {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
                 drawGraph(g2, getWidth(), getHeight());
-            } finally {
-                g2.dispose();
-            }
+            } finally { g2.dispose(); }
             return;
         }
-
         Graphics2D gBody = (Graphics2D) g.create();
         try {
             gBody.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -267,9 +268,7 @@ public class GraphPanel extends JPanel {
             gBody.translate(offsetX, offsetY);
             gBody.scale(scale, scale);
             drawGraph(gBody, getWidth(), getHeight());
-        } finally {
-            gBody.dispose();
-        }
+        } finally { gBody.dispose(); }
 
         Graphics2D gOverlay = (Graphics2D) g.create();
         try {
@@ -277,9 +276,7 @@ public class GraphPanel extends JPanel {
             gOverlay.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             drawLegend(gOverlay, getWidth(), getHeight());
             drawZoomIndicator(gOverlay, getWidth(), getHeight());
-        } finally {
-            gOverlay.dispose();
-        }
+        } finally { gOverlay.dispose(); }
     }
 
     private void drawGraph(Graphics2D g2, int w, int h) {
@@ -291,7 +288,6 @@ public class GraphPanel extends JPanel {
             g2.drawString(tip, (w - fm.stringWidth(tip)) / 2, h / 2);
             return;
         }
-
         recomputeLayoutIfNeeded(w, h);
         drawEdges(g2);
         drawNodes(g2);
@@ -316,22 +312,15 @@ public class GraphPanel extends JPanel {
         for (String from : names) {
             Point2D.Double p1 = nodePositions.get(from);
             if (p1 == null) continue;
-
             List<String> successors;
-            try {
-                successors = graph.getSuccessors(from);
-            } catch (IllegalArgumentException ex) {
-                continue;
-            }
-
+            try { successors = graph.getSuccessors(from); }
+            catch (IllegalArgumentException ex) { continue; }
             for (String to : successors) {
                 boolean selfLoop = from.equals(to);
                 boolean inCycle  = isEdgeInCycle(from, to);
-
                 g2.setColor(inCycle ? CYCLE_EDGE : EDGE_COLOR);
                 g2.setStroke(new BasicStroke(inCycle ? 2.5f : 1.4f,
                         BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-
                 if (selfLoop) {
                     drawSelfLoop(g2, p1);
                 } else {
@@ -345,29 +334,19 @@ public class GraphPanel extends JPanel {
 
     private void drawArrow(Graphics2D g2, Point2D.Double from, Point2D.Double to,
                            String fromName, String toName) {
-        double dx = to.x - from.x;
-        double dy = to.y - from.y;
+        double dx = to.x - from.x, dy = to.y - from.y;
         double len = Math.hypot(dx, dy);
         if (len < 1e-6) return;
-
-        double ux = dx / len;
-        double uy = dy / len;
-
+        double ux = dx / len, uy = dy / len;
         double fromHalfW = estimateNodeWidth(fromName) / 2.0;
         double toHalfW   = estimateNodeWidth(toName) / 2.0;
-        double fromHalfH = NODE_RADIUS;
-        double toHalfH   = NODE_RADIUS;
-
-        double fromOffset = halfExtent(ux, uy, fromHalfW, fromHalfH);
-        double toOffset   = halfExtent(ux, uy, toHalfW,   toHalfH);
-
+        double fromOffset = halfExtent(ux, uy, fromHalfW, NODE_RADIUS);
+        double toOffset   = halfExtent(ux, uy, toHalfW,   NODE_RADIUS);
         double sx = from.x + ux * fromOffset;
         double sy = from.y + uy * fromOffset;
         double ex = to.x   - ux * toOffset;
         double ey = to.y   - uy * toOffset;
-
         g2.draw(new Line2D.Double(sx, sy, ex, ey));
-
         double arrowLen = 11;
         double angle = Math.atan2(ey - sy, ex - sx);
         int x1 = (int) Math.round(ex - arrowLen * Math.cos(angle - Math.PI / 7));
@@ -388,11 +367,7 @@ public class GraphPanel extends JPanel {
         double r = NODE_RADIUS + 8;
         double cx = center.x;
         double cy = center.y - NODE_RADIUS - 14;
-
-        Arc2D arc = new Arc2D.Double(cx - r, cy - r, r * 2, r * 2,
-                45, 270, Arc2D.OPEN);
-        g2.draw(arc);
-
+        g2.draw(new Arc2D.Double(cx - r, cy - r, r * 2, r * 2, 45, 270, Arc2D.OPEN));
         double endAngle = Math.toRadians(45);
         double ex = cx + r * Math.cos(endAngle);
         double ey = cy - r * Math.sin(endAngle);
@@ -420,21 +395,23 @@ public class GraphPanel extends JPanel {
             String name = entry.getKey();
             Point2D.Double p = entry.getValue();
 
-            Color fill   = NODE_FILL;
-            Color border = NODE_BORDER;
-            int   stroke = 2;
+            Color fill = NODE_FILL, border = NODE_BORDER;
+            int stroke = 2;
 
             if (highlightedCycle.contains(name)) {
                 fill = CYCLE_FILL; border = CYCLE_BORDER; stroke = 3;
             }
             if (selectedOrder.contains(name)) {
-                fill = ORDER_FILL; border = ORDER_BORDER; stroke = 3;
+                int ci = Math.floorMod(selectedOrderColorIndex, ORDER_PALETTE.length);
+                fill = ORDER_PALETTE[ci][0];
+                border = ORDER_PALETTE[ci][1];
+                stroke = 3;
             }
             if (name.equals(selectedNode)) {
                 fill = SELECT_FILL; border = SELECT_BORDER; stroke = 4;
             }
 
-            int dWidth  = estimateNodeWidth(name);
+            int dWidth = estimateNodeWidth(name);
             int dHeight = NODE_RADIUS * 2;
             int x = (int) Math.round(p.x - dWidth / 2.0);
             int y = (int) Math.round(p.y - dHeight / 2.0);
@@ -442,7 +419,6 @@ public class GraphPanel extends JPanel {
 
             g2.setColor(fill);
             g2.fillRoundRect(x, y, dWidth, dHeight, arc, arc);
-
             g2.setColor(border);
             g2.setStroke(new BasicStroke(stroke));
             g2.drawRoundRect(x, y, dWidth, dHeight, arc, arc);
@@ -459,15 +435,10 @@ public class GraphPanel extends JPanel {
     // ====================== 绘制图例 ===========================
     // ============================================================
 
-    /**
-     * 图例：色块与文字均以"行中心线"为垂直基准，做到严格视觉居中
-     */
     private void drawLegend(Graphics2D g2, int w, int h) {
         int boxW = 160, boxH = 118;
-        int x = w - boxW - 15;
-        int y = 15;
+        int x = w - boxW - 15, y = 15;
 
-        // 底框
         g2.setColor(new Color(255, 255, 255, 235));
         g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
         g2.setColor(new Color(180, 180, 180));
@@ -479,36 +450,29 @@ public class GraphPanel extends JPanel {
         g2.setFont(font);
         FontMetrics fm = g2.getFontMetrics();
 
-        int swatchX    = x + 14;
-        int swatchW    = 18;
-        int swatchH    = 14;
-        int textGap    = 10;
-        int firstLineY = y + 22;
-        int lineGap    = 24;
+        int swatchX = x + 14, swatchW = 18, swatchH = 14, textGap = 10;
+        int firstLineY = y + 22, lineGap = 24;
 
-        drawLegendItem(g2, fm, swatchX, swatchW, swatchH,
-                firstLineY, textGap, NODE_FILL, NODE_BORDER, "普通节点");
-        drawLegendItem(g2, fm, swatchX, swatchW, swatchH,
-                firstLineY + lineGap, textGap, CYCLE_FILL, CYCLE_BORDER, "环路径");
-        drawLegendItem(g2, fm, swatchX, swatchW, swatchH,
-                firstLineY + lineGap * 2, textGap, ORDER_FILL, ORDER_BORDER, "拓扑序");
-        drawLegendItem(g2, fm, swatchX, swatchW, swatchH,
-                firstLineY + lineGap * 3, textGap, SELECT_FILL, SELECT_BORDER, "选中节点");
+        drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY,
+                textGap, NODE_FILL, NODE_BORDER, "普通节点");
+        drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap,
+                textGap, CYCLE_FILL, CYCLE_BORDER, "环路径");
+        drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap * 2,
+                textGap, ORDER_FILL, ORDER_BORDER, "拓扑序");
+        drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap * 3,
+                textGap, SELECT_FILL, SELECT_BORDER, "选中节点");
     }
 
-    /** 画一行图例：色块与文字都严格以 centerY 为垂直中心 */
     private void drawLegendItem(Graphics2D g2, FontMetrics fm,
                                 int swatchX, int swatchW, int swatchH,
                                 int centerY, int textGap,
                                 Color fill, Color border, String text) {
-        // 色块：垂直中心 = centerY
         int swatchTop = centerY - swatchH / 2;
         g2.setColor(fill);
         g2.fillRoundRect(swatchX, swatchTop, swatchW, swatchH, 5, 5);
         g2.setColor(border);
         g2.drawRoundRect(swatchX, swatchTop, swatchW, swatchH, 5, 5);
 
-        // 文字：视觉垂直中心 = centerY
         g2.setColor(TEXT_COLOR);
         int textX = swatchX + swatchW + textGap;
         int textY = centerY + (fm.getAscent() - fm.getDescent()) / 2;
@@ -519,36 +483,25 @@ public class GraphPanel extends JPanel {
     // ================== 绘制缩放指示器（T-C4） ==================
     // ============================================================
 
-    /**
-     * 缩放指示器：文字在框内水平 + 垂直严格居中
-     */
     private void drawZoomIndicator(Graphics2D g2, int w, int h) {
         String text = String.format("缩放：%.0f%%", scale * 100);
-
         Font font = getFont() != null ? getFont().deriveFont(12f)
                 : new Font(FONT_NAME, Font.PLAIN, 12);
         g2.setFont(font);
         FontMetrics fm = g2.getFontMetrics();
 
-        int textW = fm.stringWidth(text);
-        int padH  = 14;                                 // 水平内边距
-        int padV  = 8;                                  // 垂直内边距
-        int boxW  = textW + padH * 2;
-        int boxH  = fm.getHeight() + padV * 2;
-        int x = 15;
-        int y = h - boxH - 15;
+        int textW = fm.stringWidth(text), padH = 14, padV = 8;
+        int boxW = textW + padH * 2;
+        int boxH = fm.getHeight() + padV * 2;
+        int x = 15, y = h - boxH - 15;
 
-        // 底框
         g2.setColor(new Color(255, 255, 255, 235));
         g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
         g2.setColor(new Color(180, 180, 180));
         g2.drawRoundRect(x, y, boxW, boxH, 10, 10);
 
-        // 文字水平居中：左边距 = (boxW - textW) / 2
         int textX = x + (boxW - textW) / 2;
-        // 文字垂直居中：基线 = 框顶 + (框高 + ascent - descent) / 2
         int textY = y + (boxH + fm.getAscent() - fm.getDescent()) / 2;
-
         g2.setColor(TEXT_COLOR);
         g2.drawString(text, textX, textY);
     }
@@ -601,20 +554,16 @@ public class GraphPanel extends JPanel {
 
     private void showNodeInfo(int screenX, int screenY) {
         if (graph == null || nodePositions.isEmpty()) return;
-
         Point2D.Double mp = toModel(screenX, screenY);
         String hit = hitNode(mp);
         if (hit == null) return;
 
-        int inDeg  = graph.getInDegree(hit);
+        int inDeg = graph.getInDegree(hit);
         int outDeg = graph.getOutDegree(hit);
         List<String> succ = graph.getSuccessors(hit);
-
         List<String> preds = new ArrayList<>();
         for (String other : graph.getVertexNames()) {
-            if (graph.getSuccessors(other).contains(hit)) {
-                preds.add(other);
-            }
+            if (graph.getSuccessors(other).contains(hit)) preds.add(other);
         }
 
         StringBuilder sb = new StringBuilder();
@@ -655,7 +604,7 @@ public class GraphPanel extends JPanel {
 
         GraphPanel panel = new GraphPanel();
         panel.setGraph(g);
-        panel.setSelectedOrder(Arrays.asList("MA140", "MA141", "CS150"));
+        panel.setSelectedOrder(Arrays.asList("MA140", "MA141", "CS150"), 0);
 
         JButton btnLayered  = new JButton("分层布局");
         JButton btnCircular = new JButton("环形布局");
@@ -665,9 +614,7 @@ public class GraphPanel extends JPanel {
         btnReset.addActionListener(e    -> panel.resetView());
 
         JPanel top = new JPanel();
-        top.add(btnLayered);
-        top.add(btnCircular);
-        top.add(btnReset);
+        top.add(btnLayered); top.add(btnCircular); top.add(btnReset);
 
         JFrame frame = new JFrame("GraphPanel 测试");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
