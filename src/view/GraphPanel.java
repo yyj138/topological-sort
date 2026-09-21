@@ -518,22 +518,18 @@ public class GraphPanel extends JPanel {
 
     private void drawLegend(Graphics2D g2, int w, int h) {
         int boxW = 160, boxH = 118;
-        int x = w - boxW - 15, y = 15;
-
+        int x = w - boxW - 10, y = 10;
         g2.setColor(new Color(255, 255, 255, 235));
         g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
-        g2.setColor(new Color(180, 180, 180));
         g2.setStroke(new BasicStroke(1f));
         g2.drawRoundRect(x, y, boxW, boxH, 10, 10);
-
-        Font font = getFont() != null ? getFont().deriveFont(12f)
-                : new Font(FONT_NAME, Font.PLAIN, 12);
-        g2.setFont(font);
+        g2.drawRoundRect(x, y, boxW, boxH, 8, 8);
+        Font font = getFont() != null ? getFont().deriveFont(10f)
+                : new Font(FONT_NAME, Font.PLAIN, 10);
         FontMetrics fm = g2.getFontMetrics();
 
         int swatchX = x + 14, swatchW = 18, swatchH = 14, textGap = 10;
-        int firstLineY = y + 22, lineGap = 24;
-
+        int firstLineY = y + 16, lineGap = 17;
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY,
                 textGap, NODE_FILL, NODE_BORDER, "普通节点");
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap,
