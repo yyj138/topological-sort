@@ -16,6 +16,7 @@ public class StatusBar extends JPanel {
     private final JLabel lblCycle       = new JLabel("无环");
     private final JLabel lblTotalSorts = new JLabel("序列数: 0");
     private final JLabel lblCost        = new JLabel("耗时: -");
+    private final JLabel lblStatus      = new JLabel("");
     private final JLabel lblScale       = new JLabel("缩放: 100%");
     private final JLabel lblTip        = new JLabel("就绪");
 
@@ -28,6 +29,7 @@ public class StatusBar extends JPanel {
         add(lblCycle);      addSeparator();
         add(lblTotalSorts); addSeparator();
         add(lblCost); addSeparator();
+        add(lblStatus); addSeparator();
         add(lblScale);
         add(Box.createHorizontalGlue());
         add(lblTip);
@@ -82,6 +84,11 @@ public class StatusBar extends JPanel {
 
     public void setTip(String text) {
         lblTip.setText(text == null ? "" : text);
+    }
+
+    public void setStatus(String text) {
+        lblStatus.setText(text == null ? "" : text);
+        lblStatus.setForeground(text != null && !text.isEmpty() ? Color.ORANGE : UIStyle.FG_ON_DARK);
     }
 
     public void setScale(double scale) {
