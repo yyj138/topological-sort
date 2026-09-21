@@ -29,7 +29,7 @@ import java.util.Map;
  * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
  * T-C3：环形布局兜底 + switchLayout 切换入口 + 拓扑序 5 色轮换
  * T-C4：滚轮缩放（以鼠标为中心）、拖拽平移、拖动节点、显示缩放比例
- * T-C5：exportPNG 导出画布（含图例），中文不乱码；导出完整关系图
+ * T-C5：exportPNG 导出完整关系图（含图例），中文不乱码，且图例不遮挡节点
  * ------------------------------------------------------------
  * 接口对齐 MainController：
  *   setGraph / setHighlightedCycle / setSelectedOrder(list[, idx]) / exportPNG
@@ -54,11 +54,11 @@ public class GraphPanel extends JPanel {
 
     /** T-C3 拓扑序 5 色轮换色板（B 的需求：点不同结果行颜色不同） */
     private static final Color[][] ORDER_PALETTE = {
-        { new Color(225, 255, 225), new Color( 39, 174,  96) },
-        { new Color(255, 240, 220), new Color(230, 126,  34) },
-        { new Color(225, 235, 255), new Color( 41, 128, 185) },
-        { new Color(245, 225, 255), new Color(142,  68, 173) },
-        { new Color(255, 225, 235), new Color(192,  57,  43) },
+        { new Color(225, 255, 225), new Color( 39, 174,  96) }, // 绿
+        { new Color(255, 240, 220), new Color(230, 126,  34) }, // 橙
+        { new Color(225, 235, 255), new Color( 41, 128, 185) }, // 蓝
+        { new Color(245, 225, 255), new Color(142,  68, 173) }, // 紫
+        { new Color(255, 225, 235), new Color(192,  57,  43) }, // 红
     };
 
     private static final String FONT_NAME = "Microsoft YaHei";
@@ -116,25 +116,7 @@ public class GraphPanel extends JPanel {
             }
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (!SwingUtilities.isLeftMouseButton(e)) return;
-                Point2D.Double mp = toModel(e.getX(), e.getY());
-                String hit = hitNode(mp);
-                if (e.getClickCount() == 2) {
-                    // 双击节点 -> 复制节点名到剪贴板
-                    if (hit != null) {
-                        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard()
-                            .setContents(new java.awt.datatransfer.StringSelection(hit), null);
-                        javax.swing.JOptionPane.showMessageDialog(GraphPanel.this, "已复制：" + hit);
-                    }
-                } else {
-                    // 左键单击节点 -> 单节点黄色高亮；再点同一个取消
-                    if (hit != null && hit.equals(selectedNode)) {
-                        setSelectedNode(null);
-                    } else {
-                        setSelectedNode(hit);
-                    }
-                    repaint();
-                }
+                if (e.getClickCount() == 2) showNodeInfo(e.getX(), e.getY());
             }
         });
 
@@ -153,6 +135,26 @@ public class GraphPanel extends JPanel {
                     dragStartScreen = e.getPoint();
                     repaint();
                 }
+            }
+        });
+
+        addMouseWheelListener(e -> {
+            double delta = -e.getWheelRotation() * 0.1;
+            double oldScale = scale;
+            scale = clamp(scale + delta, MIN_SCALE, MAX_SCALE);
+            if (Math.abs(scale - oldScale) < 1e-9) return;
+            double mx = e.getX(), my = e.getY();
+            double factor = scale / oldScale;
+            offsetX = mx - (mx - offsetX) * factor;
+            offsetY = my - (my - offsetY) * factor;
+            repaint();
+        });
+
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                layoutDirty = true;
+                repaint();
             }
         });
     }
@@ -208,26 +210,16 @@ public class GraphPanel extends JPanel {
 
     public double getScale() { return scale; }
 
-    public void zoomIn() {
-        scale = clamp(scale + 0.2, 0.2, 3.0);
-        repaint();
-    }
-
-    public void zoomOut() {
-        scale = clamp(scale - 0.2, 0.2, 3.0);
-        repaint();
-    }
-
     /**
-     * T-C5：导出画布为 PNG（修复版）
+     * T-C5：导出完整关系图为 PNG（修复版：图例不遮挡节点）
      * ---------------------------------------------------------
      * 行为约定（契约要求）：导出“完整关系图”，而非仅当前视口。
-     * 因此本方法：
+     * 修复要点：
      *   1) 忽略当前 scale / offsetX / offsetY 视图变换；
-     *   2) 遍历所有节点位置，计算包围盒（含节点宽度、自环向上延伸、边距）；
-     *   3) 按包围盒尺寸创建 BufferedImage，1:1 完整绘制所有节点与边；
-     *   4) 图例叠加在右上角；中文节点名使用微软雅黑，避免乱码；
-     *   5) 空图（graph == null）仍按原行为绘制提示文字。
+     *   2) 计算节点包围盒；
+     *   3) 图片高度 = 节点高度 + 图例高度 + 间距，为图例预留独立顶部空间；
+     *   4) 节点整体向下平移，确保图例在右上角不会遮挡任何节点或自环；
+     *   5) 中文使用微软雅黑，避免乱码。
      */
     public void exportPNG(File file) throws IOException {
         // 1) 确保布局已经基于当前面板尺寸计算完毕，保持用户当前看到的布局
@@ -235,11 +227,12 @@ public class GraphPanel extends JPanel {
         int panelH = getHeight() > 0 ? getHeight() : getPreferredSize().height;
         recomputeLayoutIfNeeded(panelW, panelH);
 
-        // 2) 计算包围盒（含节点自身宽高、自环弧线向上延伸、边距）
+        // 2) 计算包围盒
         final int PADDING = 40;
-        // 自环弧线：圆心 y = nodeCenterY - NODE_RADIUS - 14；弧半径 r = NODE_RADIUS + 8；
-        // 最高点 y ≈ nodeCenterY - (2*NODE_RADIUS + 22)
         final int SELF_LOOP_TOP_EXTENT = 2 * NODE_RADIUS + 22;
+        final int LEGEND_WIDTH  = 160;
+        final int LEGEND_HEIGHT = 118;
+        final int LEGEND_GAP    = 20;
 
         double minX = 0, minY = 0, maxX = panelW, maxY = panelH;
         boolean hasNodes = (graph != null) && !nodePositions.isEmpty();
@@ -262,47 +255,44 @@ public class GraphPanel extends JPanel {
             }
         }
 
-        int imgW = (int) Math.ceil(maxX - minX);
-        int imgH = (int) Math.ceil(maxY - minY);
-        // 保底尺寸，保证右上角图例（160x118）不越界
+        // 3) 计算图片尺寸
+        int nodesW = (int) Math.ceil(maxX - minX);
+        int nodesH = (int) Math.ceil(maxY - minY);
+
+        int imgW = Math.max(nodesW, LEGEND_WIDTH + 30);
+        int imgH = nodesH + LEGEND_HEIGHT + LEGEND_GAP;
+
         imgW = Math.max(imgW, 500);
         imgH = Math.max(imgH, 400);
 
-        // 3) 创建图片，1:1 完整绘制（不应用 scale / offset）
+        // 4) 创建图片，1:1 完整绘制
         BufferedImage img = new BufferedImage(imgW, imgH, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = img.createGraphics();
         try {
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                    RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g2.setColor(Color.WHITE);
             g2.fillRect(0, 0, imgW, imgH);
 
             Graphics2D gBody = (Graphics2D) g2.create();
             try {
-                // 关键：不应用当前 scale / offset，
-                // 直接把包围盒左上角 (minX, minY) 平移到图片原点
-                gBody.translate(-minX, -minY);
+                gBody.translate(-minX, -minY + LEGEND_HEIGHT + LEGEND_GAP);
                 if (graph != null) {
                     drawEdges(gBody);
                     drawNodes(gBody);
                 } else {
-                    // 空图提示（与 drawGraph 中原逻辑保持一致）
                     gBody.setColor(Color.GRAY);
                     gBody.setFont(getFont() != null
                             ? getFont().deriveFont(14f)
                             : new Font(FONT_NAME, Font.PLAIN, 14));
                     String tip = "暂无数据：请先导入关系并点击计算";
                     FontMetrics fm = gBody.getFontMetrics();
-                    gBody.drawString(tip,
-                            (imgW - fm.stringWidth(tip)) / 2, imgH / 2);
+                    gBody.drawString(tip, (imgW - fm.stringWidth(tip)) / 2, imgH / 2);
                 }
             } finally {
                 gBody.dispose();
             }
 
-            // 图例叠加在完整图上（右上角）
             if (graph != null) {
                 drawLegend(g2, imgW, imgH);
             }
@@ -518,24 +508,40 @@ public class GraphPanel extends JPanel {
 
     private void drawLegend(Graphics2D g2, int w, int h) {
         int boxW = 160, boxH = 118;
-        int x = w - boxW - 10, y = 10;
+        int x = w - boxW - 15, y = 15;
+
         g2.setColor(new Color(255, 255, 255, 235));
         g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
+        g2.setColor(new Color(180, 180, 180));
         g2.setStroke(new BasicStroke(1f));
         g2.drawRoundRect(x, y, boxW, boxH, 10, 10);
-        g2.drawRoundRect(x, y, boxW, boxH, 8, 8);
-        Font font = getFont() != null ? getFont().deriveFont(10f)
-                : new Font(FONT_NAME, Font.PLAIN, 10);
+
+        Font font = getFont() != null ? getFont().deriveFont(12f)
+                : new Font(FONT_NAME, Font.PLAIN, 12);
+        g2.setFont(font);
         FontMetrics fm = g2.getFontMetrics();
 
         int swatchX = x + 14, swatchW = 18, swatchH = 14, textGap = 10;
-        int firstLineY = y + 16, lineGap = 17;
+        int firstLineY = y + 22, lineGap = 24;
+
+        // 动态计算“拓扑序”图例的颜色和文本
+        Color legendOrderFill = ORDER_FILL;
+        Color legendOrderBorder = ORDER_BORDER;
+        String legendOrderText = "拓扑序";
+        
+        if (selectedOrder != null && !selectedOrder.isEmpty()) {
+            int ci = Math.floorMod(selectedOrderColorIndex, ORDER_PALETTE.length);
+            legendOrderFill = ORDER_PALETTE[ci][0];
+            legendOrderBorder = ORDER_PALETTE[ci][1];
+            legendOrderText = "当前拓扑序"; // 或者 "当前拓扑序(" + (selectedOrderColorIndex + 1) + ")"
+        }
+
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY,
                 textGap, NODE_FILL, NODE_BORDER, "普通节点");
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap,
                 textGap, CYCLE_FILL, CYCLE_BORDER, "环路径");
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap * 2,
-                textGap, ORDER_FILL, ORDER_BORDER, "拓扑序");
+                textGap, legendOrderFill, legendOrderBorder, legendOrderText); // 动态颜色和文本
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap * 3,
                 textGap, SELECT_FILL, SELECT_BORDER, "选中节点");
     }
@@ -692,8 +698,11 @@ public class GraphPanel extends JPanel {
         btnReset.addActionListener(e    -> panel.resetView());
         btnExport.addActionListener(e -> {
             try {
-                panel.exportPNG(new File("test_export.png"));
-                System.out.println("导出成功：test_export.png");
+                File out = new File("test_export.png");
+                panel.exportPNG(out);
+                JOptionPane.showMessageDialog(null,
+                        "图片已保存到：\n" + out.getAbsolutePath(),
+                        "导出成功", JOptionPane.INFORMATION_MESSAGE);
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
