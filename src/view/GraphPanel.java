@@ -28,13 +28,13 @@ import java.util.Map;
  * T-C1：圆角矩形节点 + 宽度自适应 + 有向箭头 + 三种高亮 + 双击查看信息
  * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
  * T-C3：环形布局兜底 + switchLayout 切换入口 + 拓扑序 5 色轮换
- * T-C4：滚轮缩放（以鼠标为中心）、拖拽平移、拖动节点、显示缩放比例
+ * T-C4：滚轮缩放（以鼠标为中心）、按钮缩放、拖拽平移、拖动节点、显示缩放比例
  * T-C5：exportPNG 导出完整关系图（含图例），中文不乱码，且图例不遮挡节点
  * ------------------------------------------------------------
  * 接口对齐 MainController：
  *   setGraph / setHighlightedCycle / setSelectedOrder(list[, idx]) / exportPNG
  * 供 B 调用扩展接口：
- *   setSelectedNode / switchLayout / resetView / getScale
+ *   setSelectedNode / switchLayout / resetView / getScale / zoomIn / zoomOut
  */
 public class GraphPanel extends JPanel {
 
@@ -138,6 +138,7 @@ public class GraphPanel extends JPanel {
             }
         });
 
+        // T-C4 滚轮缩放（保留 C 原有功能）
         addMouseWheelListener(e -> {
             double delta = -e.getWheelRotation() * 0.1;
             double oldScale = scale;
@@ -210,34 +211,36 @@ public class GraphPanel extends JPanel {
 
     public double getScale() { return scale; }
 
+    /** T-C4 按钮缩放：放大（供 B 的工具栏按钮调用） */
     public void zoomIn() {
-        scale = clamp(scale + 0.2, MIN_SCALE, MAX_SCALE);
-        repaint();
+        adjustScale(0.1);
     }
 
+    /** T-C4 按钮缩放：缩小（供 B 的工具栏按钮调用） */
     public void zoomOut() {
-        scale = clamp(scale - 0.2, MIN_SCALE, MAX_SCALE);
+        adjustScale(-0.1);
+    }
+
+    /** 内部统一处理按钮缩放逻辑，以画布中心为基准 */
+    private void adjustScale(double delta) {
+        double oldScale = scale;
+        scale = clamp(scale + delta, MIN_SCALE, MAX_SCALE);
+        if (Math.abs(scale - oldScale) < 1e-9) return;
+        double cx = getWidth() / 2.0, cy = getHeight() / 2.0;
+        double factor = scale / oldScale;
+        offsetX = cx - (cx - offsetX) * factor;
+        offsetY = cy - (cy - offsetY) * factor;
         repaint();
     }
 
     /**
      * T-C5：导出完整关系图为 PNG（修复版：图例不遮挡节点）
-     * ---------------------------------------------------------
-     * 行为约定（契约要求）：导出“完整关系图”，而非仅当前视口。
-     * 修复要点：
-     *   1) 忽略当前 scale / offsetX / offsetY 视图变换；
-     *   2) 计算节点包围盒；
-     *   3) 图片高度 = 节点高度 + 图例高度 + 间距，为图例预留独立顶部空间；
-     *   4) 节点整体向下平移，确保图例在右上角不会遮挡任何节点或自环；
-     *   5) 中文使用微软雅黑，避免乱码。
      */
     public void exportPNG(File file) throws IOException {
-        // 1) 确保布局已经基于当前面板尺寸计算完毕，保持用户当前看到的布局
         int panelW = getWidth()  > 0 ? getWidth()  : getPreferredSize().width;
         int panelH = getHeight() > 0 ? getHeight() : getPreferredSize().height;
         recomputeLayoutIfNeeded(panelW, panelH);
 
-        // 2) 计算包围盒
         final int PADDING = 40;
         final int SELF_LOOP_TOP_EXTENT = 2 * NODE_RADIUS + 22;
         final int LEGEND_WIDTH  = 160;
@@ -265,7 +268,6 @@ public class GraphPanel extends JPanel {
             }
         }
 
-        // 3) 计算图片尺寸
         int nodesW = (int) Math.ceil(maxX - minX);
         int nodesH = (int) Math.ceil(maxY - minY);
 
@@ -275,7 +277,6 @@ public class GraphPanel extends JPanel {
         imgW = Math.max(imgW, 500);
         imgH = Math.max(imgH, 400);
 
-        // 4) 创建图片，1:1 完整绘制
         BufferedImage img = new BufferedImage(imgW, imgH, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = img.createGraphics();
         try {
@@ -543,7 +544,7 @@ public class GraphPanel extends JPanel {
             int ci = Math.floorMod(selectedOrderColorIndex, ORDER_PALETTE.length);
             legendOrderFill = ORDER_PALETTE[ci][0];
             legendOrderBorder = ORDER_PALETTE[ci][1];
-            legendOrderText = "当前拓扑序"; // 或者 "当前拓扑序(" + (selectedOrderColorIndex + 1) + ")"
+            legendOrderText = "当前拓扑序";
         }
 
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY,
@@ -551,7 +552,7 @@ public class GraphPanel extends JPanel {
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap,
                 textGap, CYCLE_FILL, CYCLE_BORDER, "环路径");
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap * 2,
-                textGap, legendOrderFill, legendOrderBorder, legendOrderText); // 动态颜色和文本
+                textGap, legendOrderFill, legendOrderBorder, legendOrderText);
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap * 3,
                 textGap, SELECT_FILL, SELECT_BORDER, "选中节点");
     }
@@ -702,10 +703,15 @@ public class GraphPanel extends JPanel {
         JButton btnLayered  = new JButton("分层布局");
         JButton btnCircular = new JButton("环形布局");
         JButton btnReset    = new JButton("重置视图");
+        JButton btnZoomIn   = new JButton("放大");
+        JButton btnZoomOut  = new JButton("缩小");
         JButton btnExport   = new JButton("导出 PNG");
+        
         btnLayered.addActionListener(e  -> panel.switchLayout(LayoutManager.LAYOUT_LAYERED));
         btnCircular.addActionListener(e -> panel.switchLayout(LayoutManager.LAYOUT_CIRCULAR));
         btnReset.addActionListener(e    -> panel.resetView());
+        btnZoomIn.addActionListener(e   -> panel.zoomIn());
+        btnZoomOut.addActionListener(e  -> panel.zoomOut());
         btnExport.addActionListener(e -> {
             try {
                 File out = new File("test_export.png");
@@ -719,7 +725,8 @@ public class GraphPanel extends JPanel {
         });
 
         JPanel top = new JPanel();
-        top.add(btnLayered); top.add(btnCircular); top.add(btnReset); top.add(btnExport);
+        top.add(btnLayered); top.add(btnCircular); top.add(btnReset);
+        top.add(btnZoomIn); top.add(btnZoomOut); top.add(btnExport);
 
         JFrame frame = new JFrame("GraphPanel 测试");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
