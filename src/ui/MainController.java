@@ -77,6 +77,11 @@ public class MainController {
         frame.getMiAbout().addActionListener(e -> ExceptionHandler.showInfo(frame,
                 "拓扑排序应用软件\nCST4823A 高级算法原理实践\n开发分支 dev-b"));
 
+        // 布局切换和视图控制
+        frame.getToolLayoutLayered().addActionListener(e -> frame.getGraphPanel().switchLayout(0));
+        frame.getToolLayoutCircular().addActionListener(e -> frame.getGraphPanel().switchLayout(1));
+        frame.getToolResetView().addActionListener(e -> frame.getGraphPanel().resetView());
+
         // 结果选中 -> 图上高亮该序列；颜色随结果序号轮换色板，点不同行颜色不同
         frame.getResultPanel().setSelectionListener(seq -> {
             int idx = frame.getResultPanel().getSelectedResultIndex();

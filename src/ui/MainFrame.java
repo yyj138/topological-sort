@@ -29,7 +29,8 @@ public class MainFrame extends JFrame {
     private JMenuItem miCompute, miCancel, miClearResult;
     private JMenuItem miAbout, miHelp;
     private javax.swing.JButton toolOpen, toolSave, toolCompute, toolCancel,
-            toolExportPng, toolExportResult;
+            toolExportPng, toolExportResult,
+            toolLayoutLayered, toolLayoutCircular, toolResetView;
 
     public MainFrame() {
         super("拓扑排序应用软件");
@@ -128,6 +129,11 @@ public class MainFrame extends JFrame {
         toolExportPng = makeTextButton("导出图片");
         toolExportResult = makeTextButton("导出结果");
         bar.add(toolExportPng); bar.add(toolExportResult);
+        bar.addSeparator();
+        toolLayoutLayered = makeTextButton("分层布局");
+        toolLayoutCircular = makeTextButton("环形布局");
+        toolResetView = makeTextButton("重置视图");
+        bar.add(toolLayoutLayered); bar.add(toolLayoutCircular); bar.add(toolResetView);
 
         return bar;
     }
@@ -195,6 +201,9 @@ public class MainFrame extends JFrame {
     public javax.swing.JButton getToolCancel() { return toolCancel; }
     public javax.swing.JButton getToolExportPng() { return toolExportPng; }
     public javax.swing.JButton getToolExportResult() { return toolExportResult; }
+    public javax.swing.JButton getToolLayoutLayered() { return toolLayoutLayered; }
+    public javax.swing.JButton getToolLayoutCircular() { return toolLayoutCircular; }
+    public javax.swing.JButton getToolResetView() { return toolResetView; }
 
     // 独立启动入口
     public static void main(String[] args) {
