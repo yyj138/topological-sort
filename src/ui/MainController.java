@@ -82,6 +82,9 @@ public class MainController {
         frame.getToolLayoutCircular().addActionListener(e -> frame.getGraphPanel().switchLayout(1));
         frame.getToolResetView().addActionListener(e -> frame.getGraphPanel().resetView());
 
+        // 定时刷新状态栏缩放比例
+        new javax.swing.Timer(300, e -> frame.getStatusBar().setScale(frame.getGraphPanel().getScale())).start();
+
         // 结果选中 -> 图上高亮该序列；颜色随结果序号轮换色板，点不同行颜色不同
         frame.getResultPanel().setSelectionListener(seq -> {
             int idx = frame.getResultPanel().getSelectedResultIndex();

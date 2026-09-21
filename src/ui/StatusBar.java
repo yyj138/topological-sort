@@ -8,7 +8,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.Color;
 
-// 状态栏（T-B5）：节点/边数/含环/序列总数/耗时
+// 状态栏（T-B5）：节点/边数/含环/序列总数/耗时/缩放比例
 public class StatusBar extends JPanel {
 
     private final JLabel lblNodeCount  = new JLabel("节点: 0");
@@ -16,6 +16,7 @@ public class StatusBar extends JPanel {
     private final JLabel lblCycle       = new JLabel("无环");
     private final JLabel lblTotalSorts = new JLabel("序列数: 0");
     private final JLabel lblCost        = new JLabel("耗时: -");
+    private final JLabel lblScale       = new JLabel("缩放: 100%");
     private final JLabel lblTip        = new JLabel("就绪");
 
     public StatusBar() {
@@ -26,7 +27,8 @@ public class StatusBar extends JPanel {
         add(lblEdgeCount); addSeparator();
         add(lblCycle);      addSeparator();
         add(lblTotalSorts); addSeparator();
-        add(lblCost);
+        add(lblCost); addSeparator();
+        add(lblScale);
         add(Box.createHorizontalGlue());
         add(lblTip);
         add(Box.createHorizontalStrut(UIStyle.GAP_SMALL));
@@ -40,12 +42,14 @@ public class StatusBar extends JPanel {
         lblCycle.setForeground(onDark);
         lblTotalSorts.setForeground(onDark);
         lblCost.setForeground(onDark);
+        lblScale.setForeground(onDark);
         lblTip.setForeground(new Color(180, 200, 220));
         lblNodeCount.setFont(UIStyle.FONT_STATUS);
         lblEdgeCount.setFont(UIStyle.FONT_STATUS);
         lblCycle.setFont(UIStyle.FONT_STATUS);
         lblTotalSorts.setFont(UIStyle.FONT_STATUS);
         lblCost.setFont(UIStyle.FONT_STATUS);
+        lblScale.setFont(UIStyle.FONT_STATUS);
         lblTip.setFont(UIStyle.FONT_STATUS);
     }
 
@@ -78,5 +82,9 @@ public class StatusBar extends JPanel {
 
     public void setTip(String text) {
         lblTip.setText(text == null ? "" : text);
+    }
+
+    public void setScale(double scale) {
+        lblScale.setText("缩放: " + Math.round(scale * 100) + "%");
     }
 }
