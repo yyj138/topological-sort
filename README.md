@@ -33,16 +33,15 @@
 topo-sort-app/
 ├── README.md                  # 本文件
 ├── .gitignore
-├── docs/                      # 接口契约.md（V0.1 已入库，9.17 确认后冻结）、代码规范.md
+├── docs/                      # 接口契约.md（V1.0 已冻结）、代码规范.md、设计/图数据结构设计.md
 ├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
 ├── src/
 │   ├── model/                 # Vertex / Edge / Graph
 │   ├── algorithm/             # Kahn / 枚举 / 环检测
-│   ├── io/                    # DataParser / FileManager / ImageExporter
-│   ├── view/                  # GraphPanel / LayoutManager
-│   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController
-│   ├── util/                  # Constants / InputValidator
-│   └── AlgorithmRunner.java   # 命令行测试入口
+│   ├── io/                    # DataParser / FileManager（组员 D 正式实现）
+│   ├── view/                  # GraphPanel（静态环形画布，C 后续演进分层布局）
+│   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
+│   └── util/                  # UIStyle / ExceptionHandler / InputValidator
 ├── test/                      # 算法 / 解析测试（根目录，T-E1/E2）
 └── screenshots/               # 运行截图
 ```
@@ -51,8 +50,8 @@ topo-sort-app/
 
 | 角色 | 负责模块 | 核心任务 |
 |------|---------|---------|
-| 组长 A（____） | 架构 + 核心算法 + 文档统筹 | 图结构、Kahn、枚举、环检测、接口契约、Git、可行性分析、概要设计 + 报告统筹 |
-| 组员 B（____） | GUI 主框架 + 交互控制 | 主窗口、输入/结果面板、主流程控制、状态栏异常、需求分析、详细设计 GUI、界面美化 |
+| 组长 B（yyj138） | GUI 主框架 + 交互控制 + 项目统筹 | 主窗口、输入/结果面板、主流程控制、状态栏异常、需求分析、详细设计 GUI、界面美化 + 整体协调 |
+| 组员 A（Mynth116） | 架构 + 核心算法 + 文档统筹 | 图结构、Kahn、枚举、环检测、接口契约、Git、可行性分析、概要设计 + 报告统筹 |
 | 组员 C（____） | 关系图可视化 + 图片导出 | 绘制组件、分层/环形布局、缩放拖拽、PNG 导出、详细设计可视化、截图整理 |
 | 组员 D（____） | 数据文件 + 导入导出 + 异常 | 解析器、文件读写、输入校验、异常场景清单、两组数据、测试报告、用户手册 |
 | 组员 E（____） | 测试 + 工程交付 | 算法/解析测试、冒烟脚本、命令行入口、会议记录、readme、打包、提交核对 |
@@ -63,7 +62,7 @@ topo-sort-app/
 
 | 日期 | 节点 |
 |------|------|
-| 09-17 | 接口冻结（确认契约第八章待确认清单） |
+| 09-17 | 接口冻结（V1.0 已合入 main，PR #3） |
 | 09-20 | MVP：命令行跑通图 1（建图 → 排序 → 环检测） |
 | 09-21 | 中期验收（40%） |
 | 09-23 | 功能冻结 |
@@ -125,12 +124,56 @@ git branch          # 应显示 * dev-b
 <CS200,CS225>
 ```
 
+## 关系图预览
+
+`data/figure1.txt`（任务书图 1：15 门课程、16 条先修关系）。下图为 Mermaid 有向图，在 GitHub 上直接渲染，节点是课程、箭头方向为先修 → 后修；由数据文件逐条生成：
+
+```mermaid
+flowchart LR
+    v01["MA 140"]
+    v02["MA 141"]
+    v03["CS 150"]
+    v04["CS 225"]
+    v05["CS 155"]
+    v06["CS 200"]
+    v07["CS 230"]
+    v08["CS 300"]
+    v09["CS 250"]
+    v10["CS 301"]
+    v11["CS 340"]
+    v12["CS 345"]
+    v13["CS 360"]
+    v14["CS 350"]
+    v15["CS 390"]
+    v01 --> v02
+    v02 --> v03
+    v02 --> v04
+    v03 --> v05
+    v05 --> v06
+    v05 --> v04
+    v04 --> v07
+    v04 --> v08
+    v04 --> v09
+    v08 --> v10
+    v08 --> v11
+    v11 --> v12
+    v11 --> v13
+    v09 --> v14
+    v09 --> v13
+    v13 --> v15
+```
+
+完整的 43 节点 / 85 边培养方案关系图见 [需求分析报告](docs/需求分析报告.md#53-数据文件示例) 5.3 节。
+
 ## 编译与运行
 
-```
-cd src
-javac -encoding UTF-8 model/*.java algorithm/*.java io/*.java util/*.java view/*.java ui/*.java AlgorithmRunner.java
+```powershell
+# Windows PowerShell：递归编译，必须显式指定 UTF-8
+Set-Location src
+$files = (Get-ChildItem -Recurse -Filter "*.java" |
+          Where-Object { $_.Name -ne "package-info.java" }).FullName
+& javac @('-encoding','UTF-8','-d','out') @files
 
-java AlgorithmRunner ../data/figure1.txt   # 命令行入口
-java MainFrame                            # GUI 入口（完成后）
+Set-Location out
+java ui.MainFrame
 ```
