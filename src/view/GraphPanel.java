@@ -29,7 +29,7 @@ import java.util.Map;
  * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
  * T-C3：环形布局兜底 + switchLayout 切换入口 + 拓扑序 5 色轮换
  * T-C4：滚轮缩放（以鼠标为中心）、拖拽平移、拖动节点、显示缩放比例
- * T-C5：exportPNG 导出画布（含图例），中文不乱码
+ * T-C5：exportPNG 导出画布（含图例），中文不乱码；导出完整关系图
  * ------------------------------------------------------------
  * 接口对齐 MainController：
  *   setGraph / setHighlightedCycle / setSelectedOrder(list[, idx]) / exportPNG
@@ -210,25 +210,98 @@ public class GraphPanel extends JPanel {
 
     public double getScale() { return scale; }
 
+    /**
+     * T-C5：导出画布为 PNG（修复版）
+     * ---------------------------------------------------------
+     * 行为约定（契约要求）：导出“完整关系图”，而非仅当前视口。
+     * 因此本方法：
+     *   1) 忽略当前 scale / offsetX / offsetY 视图变换；
+     *   2) 遍历所有节点位置，计算包围盒（含节点宽度、自环向上延伸、边距）；
+     *   3) 按包围盒尺寸创建 BufferedImage，1:1 完整绘制所有节点与边；
+     *   4) 图例叠加在右上角；中文节点名使用微软雅黑，避免乱码；
+     *   5) 空图（graph == null）仍按原行为绘制提示文字。
+     */
     public void exportPNG(File file) throws IOException {
-        int w = getWidth()  > 0 ? getWidth()  : getPreferredSize().width;
-        int h = getHeight() > 0 ? getHeight() : getPreferredSize().height;
-        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        // 1) 确保布局已经基于当前面板尺寸计算完毕，保持用户当前看到的布局
+        int panelW = getWidth()  > 0 ? getWidth()  : getPreferredSize().width;
+        int panelH = getHeight() > 0 ? getHeight() : getPreferredSize().height;
+        recomputeLayoutIfNeeded(panelW, panelH);
+
+        // 2) 计算包围盒（含节点自身宽高、自环弧线向上延伸、边距）
+        final int PADDING = 40;
+        // 自环弧线：圆心 y = nodeCenterY - NODE_RADIUS - 14；弧半径 r = NODE_RADIUS + 8；
+        // 最高点 y ≈ nodeCenterY - (2*NODE_RADIUS + 22)
+        final int SELF_LOOP_TOP_EXTENT = 2 * NODE_RADIUS + 22;
+
+        double minX = 0, minY = 0, maxX = panelW, maxY = panelH;
+        boolean hasNodes = (graph != null) && !nodePositions.isEmpty();
+
+        if (hasNodes) {
+            minX = Double.MAX_VALUE;
+            minY = Double.MAX_VALUE;
+            maxX = -Double.MAX_VALUE;
+            maxY = -Double.MAX_VALUE;
+            for (Map.Entry<String, Point2D.Double> entry : nodePositions.entrySet()) {
+                String name = entry.getKey();
+                Point2D.Double p = entry.getValue();
+                double halfW = estimateNodeWidth(name) / 2.0;
+                double halfH = NODE_RADIUS;
+
+                minX = Math.min(minX, p.x - halfW - PADDING);
+                maxX = Math.max(maxX, p.x + halfW + PADDING);
+                minY = Math.min(minY, p.y - halfH - SELF_LOOP_TOP_EXTENT - PADDING);
+                maxY = Math.max(maxY, p.y + halfH + PADDING);
+            }
+        }
+
+        int imgW = (int) Math.ceil(maxX - minX);
+        int imgH = (int) Math.ceil(maxY - minY);
+        // 保底尺寸，保证右上角图例（160x118）不越界
+        imgW = Math.max(imgW, 500);
+        imgH = Math.max(imgH, 400);
+
+        // 3) 创建图片，1:1 完整绘制（不应用 scale / offset）
+        BufferedImage img = new BufferedImage(imgW, imgH, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = img.createGraphics();
         try {
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g2.setColor(Color.WHITE);
-            g2.fillRect(0, 0, w, h);
+            g2.fillRect(0, 0, imgW, imgH);
+
             Graphics2D gBody = (Graphics2D) g2.create();
-            gBody.translate(offsetX, offsetY);
-            gBody.scale(scale, scale);
-            drawGraph(gBody, w, h);
-            gBody.dispose();
-            if (graph != null) drawLegend(g2, w, h);
+            try {
+                // 关键：不应用当前 scale / offset，
+                // 直接把包围盒左上角 (minX, minY) 平移到图片原点
+                gBody.translate(-minX, -minY);
+                if (graph != null) {
+                    drawEdges(gBody);
+                    drawNodes(gBody);
+                } else {
+                    // 空图提示（与 drawGraph 中原逻辑保持一致）
+                    gBody.setColor(Color.GRAY);
+                    gBody.setFont(getFont() != null
+                            ? getFont().deriveFont(14f)
+                            : new Font(FONT_NAME, Font.PLAIN, 14));
+                    String tip = "暂无数据：请先导入关系并点击计算";
+                    FontMetrics fm = gBody.getFontMetrics();
+                    gBody.drawString(tip,
+                            (imgW - fm.stringWidth(tip)) / 2, imgH / 2);
+                }
+            } finally {
+                gBody.dispose();
+            }
+
+            // 图例叠加在完整图上（右上角）
+            if (graph != null) {
+                drawLegend(g2, imgW, imgH);
+            }
         } finally {
             g2.dispose();
         }
+
         ImageIO.write(img, "png", file);
     }
 
@@ -609,12 +682,21 @@ public class GraphPanel extends JPanel {
         JButton btnLayered  = new JButton("分层布局");
         JButton btnCircular = new JButton("环形布局");
         JButton btnReset    = new JButton("重置视图");
+        JButton btnExport   = new JButton("导出 PNG");
         btnLayered.addActionListener(e  -> panel.switchLayout(LayoutManager.LAYOUT_LAYERED));
         btnCircular.addActionListener(e -> panel.switchLayout(LayoutManager.LAYOUT_CIRCULAR));
         btnReset.addActionListener(e    -> panel.resetView());
+        btnExport.addActionListener(e -> {
+            try {
+                panel.exportPNG(new File("test_export.png"));
+                System.out.println("导出成功：test_export.png");
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        });
 
         JPanel top = new JPanel();
-        top.add(btnLayered); top.add(btnCircular); top.add(btnReset);
+        top.add(btnLayered); top.add(btnCircular); top.add(btnReset); top.add(btnExport);
 
         JFrame frame = new JFrame("GraphPanel 测试");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
