@@ -30,7 +30,8 @@ public class MainFrame extends JFrame {
     private JMenuItem miAbout, miHelp;
     private javax.swing.JButton toolOpen, toolSave, toolCompute, toolCancel,
             toolExportPng, toolExportResult,
-            toolLayoutLayered, toolLayoutCircular, toolResetView;
+            toolLayoutLayered, toolLayoutCircular,
+            toolZoomIn, toolZoomOut, toolResetView;
 
     public MainFrame() {
         super("拓扑排序应用软件");
@@ -132,8 +133,12 @@ public class MainFrame extends JFrame {
         bar.addSeparator();
         toolLayoutLayered = makeTextButton("分层布局");
         toolLayoutCircular = makeTextButton("环形布局");
+        toolZoomIn = makeTextButton("放大");
+        toolZoomOut = makeTextButton("缩小");
         toolResetView = makeTextButton("重置视图");
-        bar.add(toolLayoutLayered); bar.add(toolLayoutCircular); bar.add(toolResetView);
+        bar.add(toolLayoutLayered); bar.add(toolLayoutCircular);
+        bar.add(toolZoomIn); bar.add(toolZoomOut);
+        bar.add(toolResetView);
 
         return bar;
     }
@@ -204,6 +209,8 @@ public class MainFrame extends JFrame {
     public javax.swing.JButton getToolLayoutLayered() { return toolLayoutLayered; }
     public javax.swing.JButton getToolLayoutCircular() { return toolLayoutCircular; }
     public javax.swing.JButton getToolResetView() { return toolResetView; }
+    public javax.swing.JButton getToolZoomIn() { return toolZoomIn; }
+    public javax.swing.JButton getToolZoomOut() { return toolZoomOut; }
 
     // 独立启动入口
     public static void main(String[] args) {

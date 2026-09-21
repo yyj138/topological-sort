@@ -80,16 +80,20 @@ public class MainController {
         // 布局切换和视图控制
         frame.getToolLayoutLayered().addActionListener(e -> frame.getGraphPanel().switchLayout(0));
         frame.getToolLayoutCircular().addActionListener(e -> frame.getGraphPanel().switchLayout(1));
-        frame.getToolResetView().addActionListener(e -> frame.getGraphPanel().resetView());
-
-        // 滚轮缩放后更新状态栏
-        frame.getGraphPanel().addMouseWheelListener(e -> {
+        frame.getToolZoomIn().addActionListener(e -> {
+            frame.getGraphPanel().zoomIn();
             frame.getStatusBar().setScale(frame.getGraphPanel().getScale());
         });
-        // 重置视图后也更新
+        frame.getToolZoomOut().addActionListener(e -> {
+            frame.getGraphPanel().zoomOut();
+            frame.getStatusBar().setScale(frame.getGraphPanel().getScale());
+        });
         frame.getToolResetView().addActionListener(e -> {
+            frame.getGraphPanel().resetView();
             frame.getStatusBar().setScale(frame.getGraphPanel().getScale());
         });
+
+
 
         // 结果选中 -> 图上高亮该序列；颜色随结果序号轮换色板，点不同行颜色不同
         frame.getResultPanel().setSelectionListener(seq -> {

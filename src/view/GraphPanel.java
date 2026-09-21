@@ -210,6 +210,16 @@ public class GraphPanel extends JPanel {
 
     public double getScale() { return scale; }
 
+    public void zoomIn() {
+        scale = clamp(scale + 0.2, 0.2, 3.0);
+        repaint();
+    }
+
+    public void zoomOut() {
+        scale = clamp(scale - 0.2, 0.2, 3.0);
+        repaint();
+    }
+
     /**
      * T-C5：导出画布为 PNG（修复版）
      * ---------------------------------------------------------
