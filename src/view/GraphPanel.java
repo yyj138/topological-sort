@@ -116,7 +116,15 @@ public class GraphPanel extends JPanel {
             }
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) showNodeInfo(e.getX(), e.getY());
+                if (e.getClickCount() == 2) {
+                    showNodeInfo(e.getX(), e.getY());
+                } else if (SwingUtilities.isRightMouseButton(e)) {
+                    // 右键点击节点 -> 单节点黄色高亮
+                    Point2D.Double mp = toModel(e.getX(), e.getY());
+                    String hit = hitNode(mp);
+                    setSelectedNode(hit);
+                    repaint();
+                }
             }
         });
 
@@ -137,19 +145,6 @@ public class GraphPanel extends JPanel {
                 }
             }
         });
-
-        addMouseWheelListener(e -> {
-            double delta = -e.getWheelRotation() * 0.1;
-            double oldScale = scale;
-            scale = clamp(scale + delta, MIN_SCALE, MAX_SCALE);
-            if (Math.abs(scale - oldScale) < 1e-9) return;
-            double mx = e.getX(), my = e.getY();
-            double factor = scale / oldScale;
-            offsetX = mx - (mx - offsetX) * factor;
-            offsetY = my - (my - offsetY) * factor;
-            repaint();
-        });
-
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
