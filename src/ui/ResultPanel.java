@@ -69,7 +69,7 @@ public class ResultPanel extends JPanel {
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(UIStyle.BG_PANEL);
         p.setBorder(BorderFactory.createCompoundBorder(
-                new LineBorder(UIStyle.BORDER_LIGHT, 1),
+                new LineBorder(UIStyle.BORDER_DEFAULT, 1),
                 BorderFactory.createEmptyBorder(
                         UIStyle.GAP_TINY, UIStyle.GAP_SMALL, UIStyle.GAP_TINY, UIStyle.GAP_SMALL)));
         JLabel title = new JLabel("拓扑排序结果列表");
@@ -104,7 +104,7 @@ public class ResultPanel extends JPanel {
             }
         });
         JScrollPane scroll = new JScrollPane(resultList);
-        scroll.setBorder(new LineBorder(UIStyle.BORDER_LIGHT, 1));
+        scroll.setBorder(new LineBorder(UIStyle.BORDER_DEFAULT, 1));
         return scroll;
     }
 

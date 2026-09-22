@@ -105,8 +105,8 @@ public class GraphPanel extends JPanel {
     // 悬浮按钮
     private final JButton btnZoomIn   = new JButton("+");
     private final JButton btnZoomOut  = new JButton("-");
-    private final JButton btnResetView = new JButton("\u21BA"); // ⟲
-    private final JButton btnPopout   = new JButton("放大查看");
+    private final JButton btnResetView = new JButton("重置"); // ⟲
+    private final JButton btnPopout   = new JButton("<>");
 
     /** popout 窗口里的实例不再显示"放大查看"按钮，避免无限递归 */
     private final boolean isPopoutInstance;
@@ -159,12 +159,10 @@ public class GraphPanel extends JPanel {
     }
 
     private void styleSmallButton(JButton b, int fontSize) {
-        b.setFont(new Font(FONT_NAME, Font.BOLD, fontSize));
-        b.setFocusPainted(false);
-        b.setMargin(new Insets(0, 0, 0, 0));
-        b.setBackground(new Color(245, 247, 252));
-        b.setForeground(new Color(50, 60, 80));
-        b.setBorder(BorderFactory.createLineBorder(new Color(180, 190, 210)));
+        b.setFont(new Font(util.UIStyle.FONT_FAMILY, Font.PLAIN, 12));
+        util.UIStyle.styleFloatButton(b);
+        b.setPreferredSize(new Dimension(50, 30));
+        b.setSize(new Dimension(50, 30));
     }
 
     /** 根据面板当前尺寸，摆放右下角与左上角的悬浮按钮 */
