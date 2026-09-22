@@ -32,12 +32,9 @@ import java.util.Map;
  * T-C4：滚轮缩放、按钮缩放、拖拽平移、拖动节点、单击节点高亮、显示缩放比例
  * T-C5：exportPNG 导出完整关系图（含图例），中文不乱码，且图例不遮挡节点
  * ------------------------------------------------------------
- * 本次优化（2026-09-22，按 B 的需求清单）：
- *  1) 图例精简：缩到 105x68、字体 10f、仅保留"当前拓扑序"和"选中节点"两项
- *  2) 节点右上角序号徽章：显示该节点在当前拓扑序中的位置（1,2,3...）
- *  3) 边跟随拓扑序高亮：属于当前拓扑序的边颜色跟随节点边框色，粗细 2.2f
- *  4) 右下角悬浮按钮：+ / - / 重置视图（滚轮缩放保留）
- *  5) 左上角"放大查看"按钮：弹出新窗口独立显示大图
+ * 本次修复（2026-09-22）：
+ *   popout（放大查看）窗口现在会复制主面板当前的布局模式，
+ *   无论主窗口是分层还是环形，弹出窗口都会一致显示。
  * ------------------------------------------------------------
  * 接口对齐 MainController（未改变）：
  *   setGraph / setHighlightedCycle / setSelectedOrder(list[, idx]) / exportPNG
@@ -102,10 +99,10 @@ public class GraphPanel extends JPanel {
     private Point2D.Double dragStartModel = null;
     private Point2D.Double dragNodeStartPos = null;
 
-    // 悬浮按钮
+    // 悬浮按钮（按钮图标由 B 提供，保留不动）
     private final JButton btnZoomIn   = new JButton("+");
     private final JButton btnZoomOut  = new JButton("-");
-    private final JButton btnResetView = new JButton("重置"); // ⟲
+    private final JButton btnResetView = new JButton("重置");
     private final JButton btnPopout   = new JButton("<>");
 
     /** popout 窗口里的实例不再显示"放大查看"按钮，避免无限递归 */
@@ -310,6 +307,11 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
+    /** 获取当前布局模式（0=分层，1=环形），供 popout 复制布局时使用 */
+    public int getLayoutMode() {
+        return layoutManager.getMode();
+    }
+
     public void resetView() {
         scale = 1.0; offsetX = 0; offsetY = 0;
         repaint();
@@ -336,7 +338,7 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
-    /** 弹出独立窗口放大查看当前关系图 */
+    /** 弹出独立窗口放大查看当前关系图（同步复制当前布局模式） */
     private void showPopoutView() {
         if (graph == null) {
             JOptionPane.showMessageDialog(this,
@@ -350,6 +352,8 @@ public class GraphPanel extends JPanel {
         popout.setSelectedOrder(new ArrayList<>(selectedOrder), selectedOrderColorIndex);
         if (selectedNode != null) popout.setSelectedNode(selectedNode);
         popout.resetView();
+        // === 关键修复：把主面板当前的布局模式（分层/环形）同步给弹出窗口 ===
+        popout.switchLayout(this.getLayoutMode());
 
         JFrame f = new JFrame("关系图 - 放大查看");
         f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
