@@ -159,25 +159,27 @@ public class GraphPanel extends JPanel {
     }
 
     private void styleSmallButton(JButton b, int fontSize) {
-        b.setFont(new Font(util.UIStyle.FONT_FAMILY, Font.PLAIN, 12));
+        b.setFont(new Font(util.UIStyle.FONT_FAMILY, Font.PLAIN, 11));
         util.UIStyle.styleFloatButton(b);
-        b.setPreferredSize(new Dimension(50, 30));
-        b.setSize(new Dimension(50, 30));
+        b.setPreferredSize(new Dimension(56, 28));
+        b.setSize(new Dimension(56, 28));
     }
 
     /** 根据面板当前尺寸，摆放右下角与左上角的悬浮按钮 */
     private void layoutOverlayButtons() {
         int w = getWidth(), h = getHeight();
         if (w <= 0 || h <= 0) return;
-        int size = 26;
+        int size = 30;
         int margin = 12;
-        int gap = 4;
+        int gap = 6;
         int y = h - size - margin;
-        btnResetView.setBounds(w - margin - size, y, size, size);
-        btnZoomOut.setBounds(w - margin - size * 2 - gap, y, size, size);
-        btnZoomIn.setBounds(w - margin - size * 3 - gap * 2, y, size, size);
+        // 从右往左摆
+        int x = w - margin;
+        btnResetView.setBounds(x - 56, y, 56, size); x -= 56 + gap;
+        btnZoomOut.setBounds(x - size, y, size, size); x -= size + gap;
+        btnZoomIn.setBounds(x - size, y, size, size);
         if (!isPopoutInstance) {
-            btnPopout.setBounds(15, 15, 84, 26);
+            btnPopout.setBounds(15, 15, 50, 30);
         }
     }
 
