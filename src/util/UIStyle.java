@@ -19,26 +19,27 @@ import java.awt.Insets;
 // 界面美化工具类（T-B8）：集中配色/字体/间距
 public final class UIStyle {
 
-    // 配色
-    public static final Color BG_MAIN       = new Color(248, 249, 252);
+    // 配色 - 现代扁平风格
+    public static final Color BG_MAIN       = new Color(243, 244, 246);
     public static final Color BG_PANEL      = new Color(255, 255, 255);
-    public static final Color BG_TITLE      = new Color(45, 55, 72);
-    public static final Color BG_TOOLBAR    = new Color(238, 240, 245);
-    public static final Color BG_STATUSBAR   = new Color(50, 55, 65);
-    public static final Color FG_PRIMARY     = new Color(33, 37, 41);
-    public static final Color FG_ON_DARK     = new Color(236, 240, 245);
-    public static final Color ACCENT          = new Color(50, 120, 200);
-    public static final Color ACCENT_HOVER   = new Color(35, 95, 175);
-    public static final Color SUCCESS        = new Color(40, 167, 69);
-    public static final Color DANGER         = new Color(220, 53, 69);
-    public static final Color BORDER_LIGHT    = new Color(220, 223, 228);
+    public static final Color BG_TITLE      = new Color(17, 24, 39);
+    public static final Color BG_TOOLBAR    = new Color(249, 250, 251);
+    public static final Color BG_STATUSBAR   = new Color(31, 41, 55);
+    public static final Color FG_PRIMARY     = new Color(17, 24, 39);
+    public static final Color FG_SECONDARY   = new Color(107, 114, 128);
+    public static final Color FG_ON_DARK     = new Color(243, 244, 246);
+    public static final Color ACCENT          = new Color(59, 130, 246);
+    public static final Color ACCENT_LIGHT    = new Color(219, 234, 254);
+    public static final Color SUCCESS        = new Color(16, 185, 129);
+    public static final Color DANGER         = new Color(239, 68, 68);
+    public static final Color BORDER_LIGHT    = new Color(229, 231, 235);
+    public static final Color HOVER_BG        = new Color(243, 244, 246);
 
     // 字体
     public static final String FONT_FAMILY   = "Microsoft YaHei";
     public static final Font  FONT_TITLE     = new Font(FONT_FAMILY, Font.BOLD, 16);
     public static final Font  FONT_SUBTITLE  = new Font(FONT_FAMILY, Font.BOLD, 13);
     public static final Font  FONT_BODY      = new Font(FONT_FAMILY, Font.PLAIN, 13);
-    // 逻辑等宽字体：ASCII 等宽，同时可回退显示中文（物理 Consolas 不含中文字形会显示方块）
     public static final Font  FONT_MONO      = new Font(Font.MONOSPACED, Font.PLAIN, 13);
     public static final Font  FONT_STATUS    = new Font(FONT_FAMILY, Font.PLAIN, 12);
 
@@ -72,34 +73,55 @@ public final class UIStyle {
                         title,
                         javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                         javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                        FONT_SUBTITLE, FG_PRIMARY),
+                        FONT_SUBTITLE, FG_SECONDARY),
                 BorderFactory.createEmptyBorder(GAP_SMALL, GAP_SMALL, GAP_SMALL, GAP_SMALL)));
     }
 
+    // 普通按钮：扁平风格，圆角，hover背景变灰
     public static void styleButton(JButton btn) {
         btn.setFont(FONT_BODY);
         btn.setBackground(BG_PANEL);
         btn.setForeground(FG_PRIMARY);
         btn.setFocusPainted(false);
+        btn.setContentAreaFilled(true);
+        btn.setOpaque(true);
         btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_LIGHT, 1),
+                new RoundedBorder(8, BORDER_LIGHT),
                 BorderFactory.createEmptyBorder(PADDING_BTN, GAP_MEDIUM, PADDING_BTN, GAP_MEDIUM)));
         btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btn.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override public void mouseEntered(java.awt.event.MouseEvent e) { btn.setBackground(BG_TOOLBAR); }
-            @Override public void mouseExited(java.awt.event.MouseEvent e)  { btn.setBackground(BG_PANEL); }
+            @Override public void mouseEntered(java.awt.event.MouseEvent e) {
+                btn.setBackground(HOVER_BG);
+            }
+            @Override public void mouseExited(java.awt.event.MouseEvent e)  {
+                btn.setBackground(BG_PANEL);
+            }
+            @Override public void mousePressed(java.awt.event.MouseEvent e) {
+                btn.setBackground(new Color(229, 231, 235));
+            }
         });
     }
 
+    // 主要按钮：蓝色填充，圆角，hover变深
     public static void stylePrimaryButton(JButton btn) {
-        styleButton(btn);
+        btn.setFont(FONT_BODY);
         btn.setBackground(ACCENT);
         btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setContentAreaFilled(true);
+        btn.setOpaque(true);
         btn.setBorder(BorderFactory.createEmptyBorder(PADDING_BTN, GAP_MEDIUM, PADDING_BTN, GAP_MEDIUM));
-        btn.removeMouseListener(btn.getMouseListeners()[0]);
+        btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btn.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override public void mouseEntered(java.awt.event.MouseEvent e) { btn.setBackground(ACCENT_HOVER); }
-            @Override public void mouseExited(java.awt.event.MouseEvent e)  { btn.setBackground(ACCENT); }
+            @Override public void mouseEntered(java.awt.event.MouseEvent e) {
+                btn.setBackground(new Color(37, 99, 235));
+            }
+            @Override public void mouseExited(java.awt.event.MouseEvent e)  {
+                btn.setBackground(ACCENT);
+            }
+            @Override public void mousePressed(java.awt.event.MouseEvent e) {
+                btn.setBackground(new Color(29, 78, 216));
+            }
         });
     }
 
@@ -145,28 +167,52 @@ public final class UIStyle {
         item.setBackground(BG_PANEL);
     }
 
+    // 图标按钮：无框，hover背景变浅灰，圆角
     public static void styleIconButton(AbstractButton btn) {
         btn.setFont(FONT_BODY);
         btn.setBackground(BG_TOOLBAR);
         btn.setForeground(FG_PRIMARY);
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
+        btn.setContentAreaFilled(true);
+        btn.setOpaque(true);
         btn.setMargin(new Insets(PADDING_BTN, PADDING_BTN, PADDING_BTN, PADDING_BTN));
         btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btn.setPreferredSize(BTN_ICON_SIZE);
         btn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override public void mouseEntered(java.awt.event.MouseEvent e) {
-                btn.setBackground(BG_PANEL);
-                btn.setBorderPainted(true);
+                btn.setBackground(HOVER_BG);
             }
             @Override public void mouseExited(java.awt.event.MouseEvent e) {
                 btn.setBackground(BG_TOOLBAR);
-                btn.setBorderPainted(false);
+            }
+            @Override public void mousePressed(java.awt.event.MouseEvent e) {
+                btn.setBackground(new Color(229, 231, 235));
             }
         });
     }
 
     public static Border emptyBorder(int top, int left, int bottom, int right) {
         return BorderFactory.createEmptyBorder(top, left, bottom, right);
+    }
+
+    // 自定义圆角边框
+    static class RoundedBorder extends javax.swing.border.AbstractBorder {
+        private int radius;
+        private Color color;
+        public RoundedBorder(int radius, Color color) {
+            this.radius = radius;
+            this.color = color;
+        }
+        @Override
+        public void paintBorder(java.awt.Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+            g.setColor(color);
+            ((java.awt.Graphics2D)g).setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
+        }
+        @Override
+        public java.awt.Insets getBorderInsets(java.awt.Component c) {
+            return new java.awt.Insets(1, 1, 1, 1);
+        }
     }
 }
