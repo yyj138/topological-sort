@@ -42,3 +42,6 @@ Thumbs.db
 =======
 /bin/
 >>>>>>> origin/dev-c
+
+# 本地报告文档，不入库
+docs/*.docx
