@@ -28,7 +28,7 @@ import java.util.Map;
  * T-C1：圆角矩形节点 + 宽度自适应 + 有向箭头 + 三种高亮 + 双击查看信息
  * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
  * T-C3：环形布局兜底 + switchLayout 切换入口 + 拓扑序 5 色轮换
- * T-C4：滚轮缩放（以鼠标为中心）、按钮缩放、拖拽平移、拖动节点、显示缩放比例
+ * T-C4：滚轮缩放、按钮缩放、拖拽平移、拖动节点、单击节点高亮、显示缩放比例
  * T-C5：exportPNG 导出完整关系图（含图例），中文不乱码，且图例不遮挡节点
  * ------------------------------------------------------------
  * 接口对齐 MainController：
@@ -97,16 +97,24 @@ public class GraphPanel extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (!SwingUtilities.isLeftMouseButton(e)) return;
-                if (e.getClickCount() >= 2) return;
+                if (e.getClickCount() >= 2) return; // 双击不在这里处理，避免干扰
                 Point2D.Double mp = toModel(e.getX(), e.getY());
                 String hit = hitNode(mp);
                 if (hit != null) {
                     dragNode = hit;
                     dragStartModel = mp;
                     dragNodeStartPos = nodePositions.get(hit);
+                    
+                    // 【新增】单击节点时，高亮显示为选中节点（黄色）
+                    selectedNode = hit;
+                    repaint();
                 } else {
                     dragNode = null;
                     dragStartScreen = e.getPoint();
+                    
+                    // 【新增】单击空白处时，取消选中节点高亮
+                    selectedNode = null;
+                    repaint();
                 }
             }
             @Override
@@ -168,7 +176,7 @@ public class GraphPanel extends JPanel {
         this.graph = graph;
         this.highlightedCycle = new ArrayList<>();
         this.selectedOrder = new ArrayList<>();
-        this.selectedNode = null;
+        this.selectedNode = null; // 换图时清除选中
         this.selectedOrderColorIndex = 0;
         this.nodePositions.clear();
         this.layoutDirty = true;
@@ -193,6 +201,7 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
+    /** 供 B 调用，外部设置选中节点 */
     public void setSelectedNode(String nodeName) {
         this.selectedNode = nodeName;
         repaint();
