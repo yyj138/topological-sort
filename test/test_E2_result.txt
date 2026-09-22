@@ -1,0 +1,91 @@
+========================================
+      T‑E2 解析器容错测试 E组员交付
+依据：接口契约V1.0、docs/异常与边界场景清单.md V1.8
+========================================
+
+[PASS] T‑E2‑01 缺少左括号
+      ERR: 第 1 行：格式错误：缺少左括号 '<'
+[PASS] T‑E2‑02 缺少右括号
+      ERR: 第 1 行：格式错误：缺少右括号 '>'
+[PASS] T‑E2‑03 缺少逗号分隔符
+      ERR: 第 1 行：格式错误：缺少逗号分隔符
+[PASS] T‑E2‑04 乱码行无任何尖括号
+      ERR: 第 1 行：格式错误：缺少左括号 '<'
+[PASS] T‑E2‑07 含环图解析层不报错
+      Graph info: vertex=3 edge=3
+[PASS] T‑E2‑05 重复边 <A,B>出现两次
+      WARN: 第 2 行：重复的关系 <A,B>，已忽略
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑06 自环 <A,A>（解析层不报错，交给环检测）
+      Graph info: vertex=1 edge=1
+[PASS] T‑E2‑08 null输入（空图无解析错误）
+[PASS] T‑E2‑12 注释+空行混合输入
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑13 全角尖括号全角逗号输入
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑14 行首尾多余空格
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑16 括号内为空 <>
+      ERR: 第 1 行：格式错误：括号内为空
+[PASS] T‑E2‑17 尖括号顺序错误 >A,B<
+      ERR: 第 1 行：格式错误：尖括号顺序错误
+[PASS] T‑E2‑18 起点名称为空 <,B>
+      ERR: 第 1 行：格式错误：起点名称为空
+[PASS] T‑E2‑19 终点名称为空 <A,>
+      ERR: 第 1 行：格式错误：终点名称为空
+[PASS] T‑E2‑20 名称包含非法分隔符 <A<,B>
+      ERR: 第 1 行：起点名称包含非法字符：A<
+[PASS] T‑E2‑21 名称中间含LINE SEPARATOR U+2028
+      ERR: 第 1 行：起点名称包含非法字符：A\u2028B
+[PASS] T‑E2‑21b 名称中间含NEL U+0085
+      ERR: 第 1 行：起点名称包含非法字符：A\u0085B
+[PASS] T‑E2‑21c 名称中间含PARAGRAPH SEPARATOR U+2029
+      ERR: 第 1 行：起点名称包含非法字符：A\u2029B
+[PASS] T‑E2‑21d 起点名称首部含U+2028 <U+2028A,B>
+      ERR: 第 1 行：起点名称包含非法字符：\u2028A
+[PASS] T‑E2‑21e 终点名称尾部含U+2028 <A,BU+2028>
+      ERR: 第 1 行：终点名称包含非法字符：B\u2028
+[PASS] T‑E2‑21f 起点首部含U+0085 <U+0085A,B>
+      ERR: 第 1 行：起点名称包含非法字符：\u0085A
+[PASS] T‑E2‑21g 终点尾部含U+2029 <A,BU+2029>
+      ERR: 第 1 行：终点名称包含非法字符：B\u2029
+[SKIP‑兜底未触发] T‑E2‑22 Graph名称校验兜底异常（防护兜底）
+      ERR: 第 1 行：起点名称包含非法字符：\u0085OK
+[PASS] T‑E2‑23 起点前带U+2003空白 <U+2003A,B>
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑23b 终点后带U+2003空白 <A,U+2003B>
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑23c strip后起点为空 <U+2003,B>
+      ERR: 第 1 行：格式错误：起点名称为空
+[PASS] 合法：节点名称带内部空格 <MA 141,CS 225>
+      Graph info: vertex=2 edge=1
+[PASS] 混合输入：合法、错误行，校验行号定位
+      ERR: 第 2 行：格式错误：缺少左括号 '<'
+      Graph info: vertex=4 edge=2
+[PASS] 空字符串输入
+
+---------- 一致性校验：DataParser vs InputValidator ----------
+[PASS]一致性校验输入="<A,B>"
+[PASS]一致性校验输入="<,B>"
+[PASS]一致性校验输入=">A,B<"
+[PASS]一致性校验输入="a,b>"
+[PASS]一致性校验输入="<A,A>"
+[PASS]一致性校验输入="<A,B>\n<A,B>"
+[PASS]一致性校验输入="<A,A>\n<A,A>"
+[PASS]一致性校验输入="＜A，B＞"
+[PASS]一致性校验输入="#abc\n  <X,Y>  "
+[PASS]一致性校验输入="<\u2003A,B>"
+[PASS]一致性校验输入="<A,\u2003B>"
+[PASS]一致性校验输入="<\u2003,B>"
+[PASS]一致性校验输入="<A,\u2003>"
+[PASS]一致性校验输入="<\u2028A,B>"
+[PASS]一致性校验输入="<A,B\u2029>"
+
+========================================
+【主解析用例统计】
+PASS = 29 ，SKIP(兜底未触发)=1，FAIL = 0
+【DataParser‑InputValidator一致性校验统计】
+PASS = 15，FAIL = 0
+========================================
+✅全部业务解析容错用例通过；SKIP代表兜底防护未触发，非缺陷
+输出记录已保存到 test/test_E2_result.txt，可以提交D用于T‑D7测试报告
