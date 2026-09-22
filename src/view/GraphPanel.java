@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,13 +26,20 @@ import java.util.Map;
 /**
  * 关系图绘制组件（组员 C）
  * ------------------------------------------------------------
- * T-C1：圆角矩形节点 + 宽度自适应 + 有向箭头 + 三种高亮 + 双击查看信息
+ * T-C1：圆角矩形节点 + 宽度自适应 + 有向箭头 + 多种高亮 + 双击查看信息
  * T-C2：分层布局委托 LayoutManager，按画布尺寸自适应
  * T-C3：环形布局兜底 + switchLayout 切换入口 + 拓扑序 5 色轮换
  * T-C4：滚轮缩放、按钮缩放、拖拽平移、拖动节点、单击节点高亮、显示缩放比例
  * T-C5：exportPNG 导出完整关系图（含图例），中文不乱码，且图例不遮挡节点
  * ------------------------------------------------------------
- * 接口对齐 MainController：
+ * 本次优化（2026-09-22，按 B 的需求清单）：
+ *  1) 图例精简：缩到 105x68、字体 10f、仅保留"当前拓扑序"和"选中节点"两项
+ *  2) 节点右上角序号徽章：显示该节点在当前拓扑序中的位置（1,2,3...）
+ *  3) 边跟随拓扑序高亮：属于当前拓扑序的边颜色跟随节点边框色，粗细 2.2f
+ *  4) 右下角悬浮按钮：+ / - / 重置视图（滚轮缩放保留）
+ *  5) 左上角"放大查看"按钮：弹出新窗口独立显示大图
+ * ------------------------------------------------------------
+ * 接口对齐 MainController（未改变）：
  *   setGraph / setHighlightedCycle / setSelectedOrder(list[, idx]) / exportPNG
  * 供 B 调用扩展接口：
  *   setSelectedNode / switchLayout / resetView / getScale / zoomIn / zoomOut
@@ -52,67 +60,156 @@ public class GraphPanel extends JPanel {
     private static final Color CYCLE_EDGE   = new Color(214, 48, 49);
     private static final Color TEXT_COLOR   = new Color(33, 33, 33);
 
-    /** T-C3 拓扑序 5 色轮换色板（B 的需求：点不同结果行颜色不同） */
+    /** 拓扑序 5 色轮换色板 */
     private static final Color[][] ORDER_PALETTE = {
-        { new Color(225, 255, 225), new Color( 39, 174,  96) }, // 绿
-        { new Color(255, 240, 220), new Color(230, 126,  34) }, // 橙
-        { new Color(225, 235, 255), new Color( 41, 128, 185) }, // 蓝
-        { new Color(245, 225, 255), new Color(142,  68, 173) }, // 紫
-        { new Color(255, 225, 235), new Color(192,  57,  43) }, // 红
+        { new Color(225, 255, 225), new Color( 39, 174,  96) },
+        { new Color(255, 240, 220), new Color(230, 126,  34) },
+        { new Color(225, 235, 255), new Color( 41, 128, 185) },
+        { new Color(245, 225, 255), new Color(142,  68, 173) },
+        { new Color(255, 225, 235), new Color(192,  57,  43) },
     };
 
     private static final String FONT_NAME = "Microsoft YaHei";
     private static final double MIN_SCALE = 0.3;
     private static final double MAX_SCALE = 3.0;
 
+    // ===== 图例尺寸常量（导出与界面绘制共用，保证一致） =====
+    private static final int LEGEND_WIDTH  = 105;
+    private static final int LEGEND_HEIGHT = 68;
+    private static final int LEGEND_MARGIN = 15; // 距离面板右侧/顶部的边距
+
     private Graph graph;
     private List<String> highlightedCycle = new ArrayList<>();
     private List<String> selectedOrder    = new ArrayList<>();
     private String selectedNode = null;
-
-    /** T-C3：当前拓扑序颜色序号 */
     private int selectedOrderColorIndex = 0;
+
+    /** 节点名 -> 在 selectedOrder 中的位置（1-based），用于快速绘制序号徽章 */
+    private final Map<String, Integer> orderPositionMap = new HashMap<>();
 
     private final LayoutManager layoutManager = new LayoutManager();
     private final Map<String, Point2D.Double> nodePositions = new LinkedHashMap<>();
 
-    // T-C4 视图变换
-    private double scale    = 1.0;
-    private double offsetX  = 0;
-    private double offsetY  = 0;
+    // 视图变换
+    private double scale = 1.0;
+    private double offsetX = 0;
+    private double offsetY = 0;
     private boolean layoutDirty = true;
 
-    // T-C4 拖拽状态
-    private String           dragNode         = null;
-    private Point            dragStartScreen  = null;
-    private Point2D.Double   dragStartModel   = null;
-    private Point2D.Double   dragNodeStartPos = null;
+    // 拖拽状态
+    private String dragNode = null;
+    private Point dragStartScreen = null;
+    private Point2D.Double dragStartModel = null;
+    private Point2D.Double dragNodeStartPos = null;
+
+    // 悬浮按钮
+    private final JButton btnZoomIn   = new JButton("+");
+    private final JButton btnZoomOut  = new JButton("-");
+    private final JButton btnResetView = new JButton("\u21BA"); // ⟲
+    private final JButton btnPopout   = new JButton("放大查看");
+
+    /** popout 窗口里的实例不再显示"放大查看"按钮，避免无限递归 */
+    private final boolean isPopoutInstance;
 
     public GraphPanel() {
+        this(false);
+    }
+
+    public GraphPanel(boolean isPopoutInstance) {
+        this.isPopoutInstance = isPopoutInstance;
         setBackground(Color.WHITE);
         setPreferredSize(new Dimension(900, 650));
         setFont(new Font(FONT_NAME, Font.PLAIN, 13));
+        setLayout(null); // 手动定位悬浮按钮
 
+        initOverlayButtons();
+        initMouseListeners();
+    }
+
+    // ============================================================
+    // ==================== 悬浮按钮初始化 ========================
+    // ============================================================
+
+    private void initOverlayButtons() {
+        styleSmallButton(btnZoomIn, 15);
+        styleSmallButton(btnZoomOut, 15);
+        styleSmallButton(btnResetView, 13);
+        styleSmallButton(btnPopout, 11);
+
+        btnZoomIn.addActionListener(e -> zoomIn());
+        btnZoomOut.addActionListener(e -> zoomOut());
+        btnResetView.addActionListener(e -> resetView());
+        btnPopout.addActionListener(e -> showPopoutView());
+
+        add(btnZoomIn);
+        add(btnZoomOut);
+        add(btnResetView);
+        if (!isPopoutInstance) {
+            add(btnPopout);
+        }
+
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                layoutDirty = true;
+                layoutOverlayButtons();
+                repaint();
+            }
+        });
+    }
+
+    private void styleSmallButton(JButton b, int fontSize) {
+        b.setFont(new Font(FONT_NAME, Font.BOLD, fontSize));
+        b.setFocusPainted(false);
+        b.setMargin(new Insets(0, 0, 0, 0));
+        b.setBackground(new Color(245, 247, 252));
+        b.setForeground(new Color(50, 60, 80));
+        b.setBorder(BorderFactory.createLineBorder(new Color(180, 190, 210)));
+    }
+
+    /** 根据面板当前尺寸，摆放右下角与左上角的悬浮按钮 */
+    private void layoutOverlayButtons() {
+        int w = getWidth(), h = getHeight();
+        if (w <= 0 || h <= 0) return;
+        int size = 26;
+        int margin = 12;
+        int gap = 4;
+        int y = h - size - margin;
+        btnResetView.setBounds(w - margin - size, y, size, size);
+        btnZoomOut.setBounds(w - margin - size * 2 - gap, y, size, size);
+        btnZoomIn.setBounds(w - margin - size * 3 - gap * 2, y, size, size);
+        if (!isPopoutInstance) {
+            btnPopout.setBounds(15, 15, 84, 26);
+        }
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        SwingUtilities.invokeLater(this::layoutOverlayButtons);
+    }
+
+    // ============================================================
+    // ==================== 鼠标监听初始化 ========================
+    // ============================================================
+
+    private void initMouseListeners() {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (!SwingUtilities.isLeftMouseButton(e)) return;
-                if (e.getClickCount() >= 2) return; // 双击不在这里处理，避免干扰
+                if (e.getClickCount() >= 2) return;
                 Point2D.Double mp = toModel(e.getX(), e.getY());
                 String hit = hitNode(mp);
                 if (hit != null) {
                     dragNode = hit;
                     dragStartModel = mp;
                     dragNodeStartPos = nodePositions.get(hit);
-                    
-                    // 【新增】单击节点时，高亮显示为选中节点（黄色）
                     selectedNode = hit;
                     repaint();
                 } else {
                     dragNode = null;
                     dragStartScreen = e.getPoint();
-                    
-                    // 【新增】单击空白处时，取消选中节点高亮
                     selectedNode = null;
                     repaint();
                 }
@@ -146,7 +243,6 @@ public class GraphPanel extends JPanel {
             }
         });
 
-        // T-C4 滚轮缩放（保留 C 原有功能）
         addMouseWheelListener(e -> {
             double delta = -e.getWheelRotation() * 0.1;
             double oldScale = scale;
@@ -158,14 +254,6 @@ public class GraphPanel extends JPanel {
             offsetY = my - (my - offsetY) * factor;
             repaint();
         });
-
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                layoutDirty = true;
-                repaint();
-            }
-        });
     }
 
     // ============================================================
@@ -176,7 +264,8 @@ public class GraphPanel extends JPanel {
         this.graph = graph;
         this.highlightedCycle = new ArrayList<>();
         this.selectedOrder = new ArrayList<>();
-        this.selectedNode = null; // 换图时清除选中
+        this.orderPositionMap.clear();
+        this.selectedNode = null;
         this.selectedOrderColorIndex = 0;
         this.nodePositions.clear();
         this.layoutDirty = true;
@@ -191,17 +280,25 @@ public class GraphPanel extends JPanel {
     public void setSelectedOrder(List<String> order) {
         this.selectedOrder = (order != null) ? new ArrayList<>(order) : new ArrayList<>();
         this.selectedOrderColorIndex = 0;
+        rebuildOrderPositionMap();
         repaint();
     }
 
-    /** T-C3 重载：带颜色序号，B 的 MainController 调用契约 */
+    /** 带颜色序号的重载，B 的 MainController 调用契约 */
     public void setSelectedOrder(List<String> order, int colorIndex) {
         this.selectedOrder = (order != null) ? new ArrayList<>(order) : new ArrayList<>();
         this.selectedOrderColorIndex = colorIndex;
+        rebuildOrderPositionMap();
         repaint();
     }
 
-    /** 供 B 调用，外部设置选中节点 */
+    private void rebuildOrderPositionMap() {
+        orderPositionMap.clear();
+        for (int i = 0; i < selectedOrder.size(); i++) {
+            orderPositionMap.putIfAbsent(selectedOrder.get(i), i + 1);
+        }
+    }
+
     public void setSelectedNode(String nodeName) {
         this.selectedNode = nodeName;
         repaint();
@@ -220,30 +317,51 @@ public class GraphPanel extends JPanel {
 
     public double getScale() { return scale; }
 
-    /** T-C4 按钮缩放：放大（供 B 的工具栏按钮调用） */
-    public void zoomIn() {
-        adjustScale(0.1);
-    }
+    /** T-C4 按钮缩放：放大 */
+    public void zoomIn()  { adjustScale( 0.1); }
 
-    /** T-C4 按钮缩放：缩小（供 B 的工具栏按钮调用） */
-    public void zoomOut() {
-        adjustScale(-0.1);
-    }
+    /** T-C4 按钮缩放：缩小 */
+    public void zoomOut() { adjustScale(-0.1); }
 
-    /** 内部统一处理按钮缩放逻辑，以画布中心为基准 */
+    /** 以画布中心为基准调整缩放 */
     private void adjustScale(double delta) {
         double oldScale = scale;
         scale = clamp(scale + delta, MIN_SCALE, MAX_SCALE);
         if (Math.abs(scale - oldScale) < 1e-9) return;
-        double cx = getWidth() / 2.0, cy = getHeight() / 2.0;
+        double cx = getWidth()  / 2.0;
+        double cy = getHeight() / 2.0;
         double factor = scale / oldScale;
         offsetX = cx - (cx - offsetX) * factor;
         offsetY = cy - (cy - offsetY) * factor;
         repaint();
     }
 
+    /** 弹出独立窗口放大查看当前关系图 */
+    private void showPopoutView() {
+        if (graph == null) {
+            JOptionPane.showMessageDialog(this,
+                    "暂无数据可查看，请先导入关系并点击计算",
+                    "提示", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        GraphPanel popout = new GraphPanel(true);
+        popout.setGraph(graph);
+        popout.setHighlightedCycle(new ArrayList<>(highlightedCycle));
+        popout.setSelectedOrder(new ArrayList<>(selectedOrder), selectedOrderColorIndex);
+        if (selectedNode != null) popout.setSelectedNode(selectedNode);
+        popout.resetView();
+
+        JFrame f = new JFrame("关系图 - 放大查看");
+        f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        f.setSize(1100, 800);
+        f.setLocationRelativeTo(this);
+        f.setLayout(new BorderLayout());
+        f.add(popout, BorderLayout.CENTER);
+        f.setVisible(true);
+    }
+
     /**
-     * T-C5：导出完整关系图为 PNG（修复版：图例不遮挡节点）
+     * T-C5：导出完整关系图为 PNG（含图例预留空间）
      */
     public void exportPNG(File file) throws IOException {
         int panelW = getWidth()  > 0 ? getWidth()  : getPreferredSize().width;
@@ -252,9 +370,7 @@ public class GraphPanel extends JPanel {
 
         final int PADDING = 40;
         final int SELF_LOOP_TOP_EXTENT = 2 * NODE_RADIUS + 22;
-        final int LEGEND_WIDTH  = 160;
-        final int LEGEND_HEIGHT = 118;
-        final int LEGEND_GAP    = 20;
+        final int LEGEND_GAP = 20;
 
         double minX = 0, minY = 0, maxX = panelW, maxY = panelH;
         boolean hasNodes = (graph != null) && !nodePositions.isEmpty();
@@ -400,6 +516,13 @@ public class GraphPanel extends JPanel {
 
     private void drawEdges(Graphics2D g2) {
         List<String> names = graph.getVertexNames();
+        boolean hasOrder = selectedOrder != null && selectedOrder.size() >= 2;
+        Color orderEdgeColor = EDGE_COLOR;
+        if (hasOrder) {
+            int ci = Math.floorMod(selectedOrderColorIndex, ORDER_PALETTE.length);
+            orderEdgeColor = ORDER_PALETTE[ci][1]; // 与节点边框色一致
+        }
+
         for (String from : names) {
             Point2D.Double p1 = nodePositions.get(from);
             if (p1 == null) continue;
@@ -409,9 +532,25 @@ public class GraphPanel extends JPanel {
             for (String to : successors) {
                 boolean selfLoop = from.equals(to);
                 boolean inCycle  = isEdgeInCycle(from, to);
-                g2.setColor(inCycle ? CYCLE_EDGE : EDGE_COLOR);
-                g2.setStroke(new BasicStroke(inCycle ? 2.5f : 1.4f,
+                boolean inOrder  = hasOrder && isEdgeInOrder(from, to);
+
+                Color edgeColor;
+                float strokeWidth;
+                if (inCycle) {
+                    edgeColor = CYCLE_EDGE;
+                    strokeWidth = 2.5f;
+                } else if (inOrder) {
+                    edgeColor = orderEdgeColor;
+                    strokeWidth = 2.2f;
+                } else {
+                    edgeColor = EDGE_COLOR;
+                    strokeWidth = 1.4f;
+                }
+
+                g2.setColor(edgeColor);
+                g2.setStroke(new BasicStroke(strokeWidth,
                         BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
                 if (selfLoop) {
                     drawSelfLoop(g2, p1);
                 } else {
@@ -421,6 +560,13 @@ public class GraphPanel extends JPanel {
                 }
             }
         }
+    }
+
+    /** 判断 from->to 这条边是否属于当前拓扑序（from 出现在 to 之前） */
+    private boolean isEdgeInOrder(String from, String to) {
+        Integer fi = orderPositionMap.get(from);
+        Integer ti = orderPositionMap.get(to);
+        return fi != null && ti != null && fi < ti;
     }
 
     private void drawArrow(Graphics2D g2, Point2D.Double from, Point2D.Double to,
@@ -482,6 +628,9 @@ public class GraphPanel extends JPanel {
         g2.setFont(font);
         FontMetrics fm = g2.getFontMetrics();
 
+        boolean hasOrder = selectedOrder != null && !selectedOrder.isEmpty();
+        int paletteIdx = Math.floorMod(selectedOrderColorIndex, ORDER_PALETTE.length);
+
         for (Map.Entry<String, Point2D.Double> entry : nodePositions.entrySet()) {
             String name = entry.getKey();
             Point2D.Double p = entry.getValue();
@@ -492,10 +641,9 @@ public class GraphPanel extends JPanel {
             if (highlightedCycle.contains(name)) {
                 fill = CYCLE_FILL; border = CYCLE_BORDER; stroke = 3;
             }
-            if (selectedOrder.contains(name)) {
-                int ci = Math.floorMod(selectedOrderColorIndex, ORDER_PALETTE.length);
-                fill = ORDER_PALETTE[ci][0];
-                border = ORDER_PALETTE[ci][1];
+            if (hasOrder && selectedOrder.contains(name)) {
+                fill = ORDER_PALETTE[paletteIdx][0];
+                border = ORDER_PALETTE[paletteIdx][1];
                 stroke = 3;
             }
             if (name.equals(selectedNode)) {
@@ -519,50 +667,84 @@ public class GraphPanel extends JPanel {
             int tx = (int) Math.round(p.x) - tw / 2;
             int ty = (int) Math.round(p.y) + (fm.getAscent() - fm.getDescent()) / 2;
             g2.drawString(name, tx, ty);
+
+            // === 节点序号徽章 ===
+            if (hasOrder) {
+                Integer pos = orderPositionMap.get(name);
+                if (pos != null) {
+                    drawOrderBadge(g2, p, dWidth, dHeight, pos,
+                            ORDER_PALETTE[paletteIdx][1]);
+                }
+            }
         }
     }
 
+    /** 绘制节点右上角的序号徽章 */
+    private void drawOrderBadge(Graphics2D g2, Point2D.Double center,
+                                int dWidth, int dHeight, int position,
+                                Color badgeColor) {
+        int r = 11;
+        int cx = (int) Math.round(center.x + dWidth / 2.0 - 4);
+        int cy = (int) Math.round(center.y - dHeight / 2.0 + 4);
+
+        g2.setColor(Color.WHITE);
+        g2.fillOval(cx - r - 1, cy - r - 1, (r + 1) * 2, (r + 1) * 2);
+        g2.setColor(badgeColor);
+        g2.fillOval(cx - r, cy - r, r * 2, r * 2);
+
+        String num = String.valueOf(position);
+        Font badgeFont = new Font(FONT_NAME, Font.BOLD, 11);
+        g2.setFont(badgeFont);
+        FontMetrics bfm = g2.getFontMetrics();
+        int nw = bfm.stringWidth(num);
+        int nx = cx - nw / 2;
+        int ny = cy + (bfm.getAscent() - bfm.getDescent()) / 2;
+        g2.setColor(Color.WHITE);
+        g2.drawString(num, nx, ny);
+
+        Font restore = getFont();
+        if (restore == null) restore = new Font(FONT_NAME, Font.PLAIN, 13);
+        g2.setFont(restore);
+    }
+
     // ============================================================
-    // ====================== 绘制图例 ===========================
+    // ====================== 绘制图例（紧凑版） ==================
     // ============================================================
 
     private void drawLegend(Graphics2D g2, int w, int h) {
-        int boxW = 160, boxH = 118;
-        int x = w - boxW - 15, y = 15;
+        // 紧凑版图例：105x68、字体 10f、只保留 2 项
+        int boxW = LEGEND_WIDTH, boxH = LEGEND_HEIGHT;
+        int x = w - boxW - LEGEND_MARGIN;
+        int y = LEGEND_MARGIN;
 
         g2.setColor(new Color(255, 255, 255, 235));
-        g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
+        g2.fillRoundRect(x, y, boxW, boxH, 8, 8);
         g2.setColor(new Color(180, 180, 180));
         g2.setStroke(new BasicStroke(1f));
-        g2.drawRoundRect(x, y, boxW, boxH, 10, 10);
+        g2.drawRoundRect(x, y, boxW, boxH, 8, 8);
 
-        Font font = getFont() != null ? getFont().deriveFont(12f)
-                : new Font(FONT_NAME, Font.PLAIN, 12);
+        Font font = getFont() != null ? getFont().deriveFont(10f)
+                : new Font(FONT_NAME, Font.PLAIN, 10);
         g2.setFont(font);
         FontMetrics fm = g2.getFontMetrics();
 
-        int swatchX = x + 14, swatchW = 18, swatchH = 14, textGap = 10;
-        int firstLineY = y + 22, lineGap = 24;
+        int swatchX = x + 9;
+        int swatchW = 14, swatchH = 11;
+        int textGap = 7;
+        int firstLineY = y + 21;
+        int lineGap = 22;
 
-        // 动态计算“拓扑序”图例的颜色和文本
         Color legendOrderFill = ORDER_FILL;
         Color legendOrderBorder = ORDER_BORDER;
-        String legendOrderText = "拓扑序";
-        
         if (selectedOrder != null && !selectedOrder.isEmpty()) {
             int ci = Math.floorMod(selectedOrderColorIndex, ORDER_PALETTE.length);
             legendOrderFill = ORDER_PALETTE[ci][0];
             legendOrderBorder = ORDER_PALETTE[ci][1];
-            legendOrderText = "当前拓扑序";
         }
 
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY,
-                textGap, NODE_FILL, NODE_BORDER, "普通节点");
+                textGap, legendOrderFill, legendOrderBorder, "当前拓扑序");
         drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap,
-                textGap, CYCLE_FILL, CYCLE_BORDER, "环路径");
-        drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap * 2,
-                textGap, legendOrderFill, legendOrderBorder, legendOrderText);
-        drawLegendItem(g2, fm, swatchX, swatchW, swatchH, firstLineY + lineGap * 3,
                 textGap, SELECT_FILL, SELECT_BORDER, "选中节点");
     }
 
@@ -572,9 +754,9 @@ public class GraphPanel extends JPanel {
                                 Color fill, Color border, String text) {
         int swatchTop = centerY - swatchH / 2;
         g2.setColor(fill);
-        g2.fillRoundRect(swatchX, swatchTop, swatchW, swatchH, 5, 5);
+        g2.fillRoundRect(swatchX, swatchTop, swatchW, swatchH, 4, 4);
         g2.setColor(border);
-        g2.drawRoundRect(swatchX, swatchTop, swatchW, swatchH, 5, 5);
+        g2.drawRoundRect(swatchX, swatchTop, swatchW, swatchH, 4, 4);
 
         g2.setColor(TEXT_COLOR);
         int textX = swatchX + swatchW + textGap;
@@ -707,42 +889,16 @@ public class GraphPanel extends JPanel {
 
         GraphPanel panel = new GraphPanel();
         panel.setGraph(g);
-        panel.setSelectedOrder(Arrays.asList("MA140", "MA141", "CS150"), 0);
-
-        JButton btnLayered  = new JButton("分层布局");
-        JButton btnCircular = new JButton("环形布局");
-        JButton btnReset    = new JButton("重置视图");
-        JButton btnZoomIn   = new JButton("放大");
-        JButton btnZoomOut  = new JButton("缩小");
-        JButton btnExport   = new JButton("导出 PNG");
-        
-        btnLayered.addActionListener(e  -> panel.switchLayout(LayoutManager.LAYOUT_LAYERED));
-        btnCircular.addActionListener(e -> panel.switchLayout(LayoutManager.LAYOUT_CIRCULAR));
-        btnReset.addActionListener(e    -> panel.resetView());
-        btnZoomIn.addActionListener(e   -> panel.zoomIn());
-        btnZoomOut.addActionListener(e  -> panel.zoomOut());
-        btnExport.addActionListener(e -> {
-            try {
-                File out = new File("test_export.png");
-                panel.exportPNG(out);
-                JOptionPane.showMessageDialog(null,
-                        "图片已保存到：\n" + out.getAbsolutePath(),
-                        "导出成功", JOptionPane.INFORMATION_MESSAGE);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        });
-
-        JPanel top = new JPanel();
-        top.add(btnLayered); top.add(btnCircular); top.add(btnReset);
-        top.add(btnZoomIn); top.add(btnZoomOut); top.add(btnExport);
+        panel.setSelectedOrder(Arrays.asList(
+                "MA140", "MA141", "CS150", "CS155", "CS200", "CS230",
+                "CS250", "CS300", "CS301", "CS225",
+                "CS340", "CS345", "CS350", "CS360", "CS390"), 0);
 
         JFrame frame = new JFrame("GraphPanel 测试");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1000, 750);
         frame.setLocationRelativeTo(null);
         frame.setLayout(new BorderLayout());
-        frame.add(top, BorderLayout.NORTH);
         frame.add(panel, BorderLayout.CENTER);
         frame.setVisible(true);
     }
