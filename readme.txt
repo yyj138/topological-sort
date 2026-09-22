@@ -1,192 +1,69 @@
-============================================================
-                拓扑排序应用软件 topological-sort
-                    组别：第6组
-============================================================
-【项目简介】
-本Java程序实现有向图解析、环检测、Kahn算法拓扑排序、枚举全部合法拓扑序列；
-支持命令行入口 AlgorithmRunner.java，配套Swing图形界面，附带完整测试用例。
+================================================================
+            拓扑排序应用软件 - 运行说明文档
+================================================================
 
-运行环境：
-    JDK 11+（推荐JDK21）
-    操作系统：Windows / Linux / macOS
-    Windows可使用批处理冒烟脚本，Linux/macOS需手动执行编译命令。
+一、运行环境
+----------------------------------------------------------------
+1. 操作系统：Windows 10/11（推荐），兼容 Linux / macOS
+2. Java 环境：JDK 8 或以上版本（开发使用 JDK 21，向下兼容）
+3. 无需安装任何第三方依赖库，全部使用 JDK 标准类库
 
-============================================================
-一、项目目录结构
-============================================================
-topological-sort/
-├── README.md                  # 本文件
-├── .gitignore
-├── run_tests.bat              # 冒烟自动化测试脚本
-├── docs/                      # docs目录下存放Java+Swing课程拓扑排序桌面软件全套设计、接口、测试与协作文档
-├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
-├── src/
-│   ├── model/                 # Vertex / Edge / Graph
-│   ├── algorithm/             # Kahn / 枚举 / 环检测
-│   ├── io/                    # DataParser / FileManager / ParseIssue / ParseResult / ImageExporter
-│   ├── view/                  # GraphPanel（静态环形画布），LayoutManager（分层布局）
-│   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
-│   ├── util/                  # UIStyle / ExceptionHandler / InputValidator
- |   └── AlgorithmRunner.java   # 无 GUI 的命令行独立测试入口
-├── test/                      # 算法测试（四类用例）代码 / 解析器测试代码 / 自测代码 / txt测试报告
-├── 会议记录/                   # 五个会议记录（doc + pdf）
-├── 拓扑排序项目-团队任务执行方案 # 分工细节
-└── screenshots/               # 运行截图
+二、编译方法
+----------------------------------------------------------------
+1. 打开 PowerShell，进入项目根目录
+2. 执行以下命令编译全部源码：
 
-说明：bin和out目录为javac编译class文件自动生成，不需要上传版本库，干净环境编译时自动创建。
+   javac -encoding UTF-8 -d out (Get-ChildItem -Recurse -Filter *.java src | where name -ne package-info).FullName
 
-============================================================
-二、Windows平台使用
-============================================================
---------------------------
-方式1：一键冒烟测试（Windows专用）
---------------------------
-1. 将命令行/资源管理器定位到【项目根目录 topological-sort/】
-2. 双击 run_tests.bat
-3. 脚本自动完成：清理旧编译产物 → 全部源码编译 → 执行全套测试
-4. 👉用途：验收前自检脚本，一键运行全部测试用例，快速判断项目是否正常
-5. 测试汇总报告输出至：test\smoke_summary.txt
-6. 详细测试输出：
-    test\test_E1_result.txt   算法测试详细输出
-    test\test_E2_result.txt   解析容错测试详细输出
+3. 编译成功后，out 目录下会生成所有 .class 文件
 
-⚠️重要提示：
-run_tests.bat 仅支持Windows系统。
-Linux / macOS 无法直接运行bat脚本，请参考下方手动编译运行。
+三、运行方法
+----------------------------------------------------------------
+1. 图形界面启动（推荐）：
 
---------------------------
-方式2：命令行入口 AlgorithmRunner（无需GUI）
---------------------------
-# 第一步编译全部代码（在项目根目录 topological-sort/ 执行）
-javac -encoding UTF-8 ^
--sourcepath src;test ^
--d bin ^
-src\model\*.java ^
-src\algorithm\*.java ^
-src\io\*.java ^
-src\view\*.java ^
-src\ui\*.java ^
-src\util\*.java ^
-src\AlgorithmRunner.java ^
-test\*.java
+   java -cp out ui.MainFrame
 
-# 用法1：仅控制台输出
-java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt
+2. 命令行测试模式（无需图形界面）：
 
-# 用法2：控制台输出同时写入日志文件
-java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt test/out_sample.txt
+   java -cp out AlgorithmRunner data/figure1.txt
 
-参数说明：
-    第一个参数：输入图文本文件路径（相对路径，基于项目根目录topological-sort/）
-    第二个参数(可选)：输出日志txt文件路径
+3. 一键运行测试：
+   双击 run_tests.bat 脚本，自动完成编译和全套测试
 
---------------------------
-方式3：运行图形界面GUI
---------------------------
+四、操作说明
+----------------------------------------------------------------
+1. 导入数据：
+   - 直接在左侧文本框粘贴 <a,b> 格式的关系数据
+   - 或点击工具栏"打开文件"按钮，选择 TXT 格式数据文件
 
-# 编译src和test到out文件夹中
-$outDir=".\out"
-if(Test-Path $outDir){Remove-Item -Recurse -Force $outDir}
-New-Item -ItemType Directory -Path $outDir | Out-Null
-$src=Get-ChildItem src -Recurse -Filter *.java|Where-Object{$_.Name -ne "package-info.java"}
-$test=Get-ChildItem test -Recurse -Filter *.java|Where-Object{$_.Name -ne "package-info.java"}
-javac -encoding UTF-8 -d $outDir @($src.FullName+$test.FullName)
+2. 计算拓扑排序：
+   - 点击"计算"按钮，系统自动解析、建图、检测环、枚举拓扑结果
+   - 计算过程中可点击"取消"按钮中断计算
+   - 默认上限 1000 条结果，30 秒超时自动停止
 
-# 运行GUI
-java -cp out ui.MainFrame
+3. 查看关系图：
+   - 左侧画布显示课程先修关系图
+   - 鼠标滚轮缩放，按住左键拖动平移
+   - 点击右侧结果列表，图上同步高亮对应拓扑序
+   - 右上角可切换分层布局/环形布局
+   - 右下角按钮可放大缩小、重置视图、弹出大图窗口
 
+4. 导出数据：
+   - 点击"导出结果"，可将排序结果导出为 TXT 或 CSV 文件
+   - 点击"导出图片"，可将当前关系图导出为 PNG 图片
 
---------------------------
-方式4：打包生成可执行jar包（可选）
---------------------------
-可将项目打包为jar，实现一键启动GUI，任务要求两种启动方式：双击bat脚本、java‑jar。
-打包后运行示例：
-java -jar topological-sort.jar
+五、常见问题
+----------------------------------------------------------------
+1. 中文乱码？
+   - 编译时必须加 -encoding UTF-8 参数
+   - 运行时确保系统中文字体正常
 
-============================================================
-三、Linux / macOS 手动编译&运行
-============================================================
-# 编译（项目根目录 topological-sort/ 执行）
-javac -encoding UTF-8 \
--sourcepath src:test \
--d bin \
-src/model/*.java \
-src/algorithm/*.java \
-src/io/*.java \
-src/view/*.java \
-src/ui/*.java \
-src/util/*.java \
-src/AlgorithmRunner.java \
-test/*.java
+2. 点击计算没反应？
+   - 检查输入格式是否正确，每行必须是 <课程1,课程2> 格式
+   - 非法输入会弹出错误提示，标注错误行号
 
-# 命令行入口运行示例
-java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt
-java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt test/out_sample.txt
+3. 大图计算很慢？
+   - 系统默认 1000 条结果上限，不会无限计算
+   - 可点击取消按钮中断，保留已生成的结果
 
-# GUI运行
-java -Dfile.encoding=UTF-8 -cp bin ui.MainFrame
-
-============================================================
-四、数据输入格式规范
-============================================================
-文本文件每一行代表一条有向边，格式 <起点,终点>
-支持特性：
-  1. #开头行为注释，程序自动跳过
-  2. 忽略空行；容忍行首尾空格；兼容全角尖括号、全角逗号
-  3. 自动识别重复边、自环，给出警告或提示
-
-示例内容(figure1.txt片段):
-# 课程先修关系样例
-<CS 150,CS 200>
-<CS 200,CS 230>
-<MA 140,MA 141>
-
-============================================================
-五、IDE运行注意事项（IDEA/Eclipse）
-============================================================
-❗关键：IDE运行时，请把【工作目录 Working directory 设置为项目根目录 topological-sort/】，
-不要设置为src目录，否则会找不到 data/、test/ 相对路径文件。
-
-JVM运行参数建议添加：
--Dfile.encoding=UTF-8
-保证中文、UTF‑8文本读写不出现乱码。
-
-============================================================
-六、干净环境解压运行提示【验收重点】
-============================================================
-从提交压缩包解压之后，**必须进入解压出来的项目根目录 topological-sort/ 执行全部编译/运行命令，不要进入src子文件夹执行**。
-本readme文档满足T‑E6任务要求，在未安装IDE的干净环境下，可以按照本文档完成编译、测试、运行GUI与命令行程序。
-
-============================================================
-七、测试说明
-============================================================
-1. AlgorithmTest(test包)：算法全套测试，正确性、边界、含环异常、千节点性能
-   输出文件：test/test_E1_result.txt
-2. ParserFaultTest(test包)：解析器容错测试，覆盖非法输入、边界场景
-   输出文件：test/test_E2_result.txt
-3. run_tests.bat：冒烟测试，汇总所有测试PASS/FAIL状态。
-
-============================================================
-八、常见问题 FAQ
-============================================================
-Q1：提示文件找不到 data/figure1.txt
-A：必须在【项目根目录 topological-sort/】启动程序，不要进入src子目录运行；IDE检查工作目录配置。
-
-Q2：中文乱码
-A：运行时添加JVM参数 -Dfile.encoding=UTF-8；所有输入输出文件使用UTF‑8编码。
-
-Q3：Linux/mac运行bat报错
-A：bat是Windows批处理，复制脚本内javac、java命令手动执行。
-
-Q4：输出目录test不存在？
-A：程序与脚本会自动创建test文件夹，无需手动新建。
-
-Q5：测试出现FAIL
-A：查看test目录下对应的txt日志，定位错误用例，排查代码或输入数据。
-
-============================================================
-九、打包提交说明
-============================================================
-课程任务最终提交压缩包命名为 groupXX.zip（例如group01.zip代表第1组），目录结构与本文件描述一致。
-源码提交git仓库不提交bin编译产物。
-本readme.txt内容与《用户使用手册》文档内容保持一致，互不冲突。
+================================================================
