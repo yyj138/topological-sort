@@ -45,21 +45,16 @@
 %%{init: {'themeVariables': {'fontSize': '9px', 'fontFamily': 'Microsoft YaHei', 'primaryColor': '#e3f2fd', 'lineColor': '#90caf9', 'borderColor': '#64b5f6'}}}%%
 flowchart TB
     subgraph UI层
-        A1[主窗口] --> A2[输入面板]
-        A1 --> A3[结果面板]
-        A1 --> A4[状态栏]
+        direction LR
+        A1[主窗口] --- A2[输入面板] --- A3[结果面板] --- A4[状态栏]
     end
-    subgraph 控制层
-        B1[MainController<br/>任务调度]
-    end
+    B1[MainController]
     subgraph 功能模块层
-        C1[算法模块]
-        C2[可视化模块]
-        C3[IO模块]
-        C4[模型模块]
+        direction LR
+        C1[算法] --- C2[可视化] --- C3[IO] --- C4[模型]
     end
-    UI层 --> 控制层
-    控制层 --> 功能模块层
+    UI层 --> B1
+    B1 --> 功能模块层
 ```
 
 ---
