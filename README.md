@@ -41,7 +41,15 @@
 
 ## 系统架构
 
-UI层（主窗口/输入/结果/状态栏）→ 控制层（MainController）→ 算法/可视化/IO/模型四个功能模块。
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '13px', 'fontFamily': 'Microsoft YaHei'}}}%%
+flowchart LR
+    A[UI层] --> B[MainController]
+    B --> C[算法模块]
+    B --> D[可视化模块]
+    B --> E[IO模块]
+    B --> F[模型模块]
+```
 
 ---
 
@@ -52,6 +60,20 @@ UI层（主窗口/输入/结果/状态栏）→ 控制层（MainController）→
 
 ### 2. 全拓扑排序枚举
 基于 DFS + 回溯，每层选择入度为 0 的节点递归，回溯恢复状态，默认上限 1000 条。
+
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '13px', 'fontFamily': 'Microsoft YaHei'}}}%%
+flowchart LR
+    S[开始] --> A[找入度为0节点]
+    A --> B{还有候选}
+    B -->|是| C[选节点递归]
+    C --> D[回溯恢复]
+    D --> A
+    B -->|否| E[记录拓扑序]
+    E --> F{到上限}
+    F -->|否| A
+    F -->|是| G[返回]
+```
 
 ### 3. 环检测
 Kahn 计数法判定有环，DFS 三色标记输出具体环路径。
