@@ -400,24 +400,8 @@ public class GraphPanel extends JPanel {
             for (String to : successors) {
                 boolean selfLoop = from.equals(to);
                 boolean inCycle  = isEdgeInCycle(from, to);
-                boolean inOrder  = selectedOrder.contains(from) && selectedOrder.contains(to);
-                
-                Color edgeColor;
-                float edgeWidth;
-                if (inCycle) {
-                    edgeColor = CYCLE_EDGE;
-                    edgeWidth = 2.5f;
-                } else if (inOrder) {
-                    int ci = Math.floorMod(selectedOrderColorIndex, ORDER_PALETTE.length);
-                    edgeColor = ORDER_PALETTE[ci][1];
-                    edgeWidth = 2.2f;
-                } else {
-                    edgeColor = EDGE_COLOR;
-                    edgeWidth = 1.4f;
-                }
-                
-                g2.setColor(edgeColor);
-                g2.setStroke(new BasicStroke(edgeWidth,
+                g2.setColor(inCycle ? CYCLE_EDGE : EDGE_COLOR);
+                g2.setStroke(new BasicStroke(inCycle ? 2.5f : 1.4f,
                         BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 if (selfLoop) {
                     drawSelfLoop(g2, p1);
@@ -534,22 +518,22 @@ public class GraphPanel extends JPanel {
     // ============================================================
 
     private void drawLegend(Graphics2D g2, int w, int h) {
-        int boxW = 130, boxH = 95;
-        int x = w - boxW - 10, y = 10;
+        int boxW = 160, boxH = 118;
+        int x = w - boxW - 15, y = 15;
 
         g2.setColor(new Color(255, 255, 255, 235));
-        g2.fillRoundRect(x, y, boxW, boxH, 8, 8);
+        g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
         g2.setColor(new Color(180, 180, 180));
         g2.setStroke(new BasicStroke(1f));
-        g2.drawRoundRect(x, y, boxW, boxH, 8, 8);
+        g2.drawRoundRect(x, y, boxW, boxH, 10, 10);
 
-        Font font = getFont() != null ? getFont().deriveFont(10f)
-                : new Font(FONT_NAME, Font.PLAIN, 10);
+        Font font = getFont() != null ? getFont().deriveFont(12f)
+                : new Font(FONT_NAME, Font.PLAIN, 12);
         g2.setFont(font);
         FontMetrics fm = g2.getFontMetrics();
 
-        int swatchX = x + 10, swatchW = 14, swatchH = 10, textGap = 6;
-        int firstLineY = y + 18, lineGap = 17;
+        int swatchX = x + 14, swatchW = 18, swatchH = 14, textGap = 10;
+        int firstLineY = y + 22, lineGap = 24;
 
         // 动态计算“拓扑序”图例的颜色和文本
         Color legendOrderFill = ORDER_FILL;
