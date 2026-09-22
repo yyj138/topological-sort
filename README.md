@@ -187,20 +187,21 @@ flowchart LR
 
 ## 编译与运行
 
-### 编译src和test到out文件夹中
+```powershell
+编译src和test到out文件夹中
 $outDir=".\out"
 if(Test-Path $outDir){Remove-Item -Recurse -Force $outDir}
 New-Item -ItemType Directory -Path $outDir | Out-Null
 $src=Get-ChildItem src -Recurse -Filter *.java|Where-Object{$_.Name -ne "package-info.java"}
 $test=Get-ChildItem test -Recurse -Filter *.java|Where-Object{$_.Name -ne "package-info.java"}
 javac -encoding UTF-8 -d $outDir @($src.FullName+$test.FullName)
-### 运行GUI
+运行GUI
 java -cp out ui.MainFrame
-### 命令行无GUI工具
+命令行无GUI工具
 java -cp out AlgorithmRunner data/figure1.txt
-### 算法测试
+算法测试
 java -cp out test.AlgorithmTest
-### 解析容错测试
+解析容错测试
 java -cp out test.ParserFaultTest
-### run_tests.bat
+运行run_tests.bat
 双击 run_tests.bat，脚本自动完成：清理旧编译产物 → 全部源码编译 → 执行全套测试
