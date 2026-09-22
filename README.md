@@ -42,7 +42,7 @@
 ## 系统架构
 
 ```mermaid
-%%{init: {'themeVariables': {'fontSize': '11px', 'fontFamily': 'Microsoft YaHei', 'primaryColor': '#e3f2fd', 'lineColor': '#90caf9', 'borderColor': '#64b5f6'}}}%%
+%%{init: {'themeVariables': {'fontSize': '9px', 'fontFamily': 'Microsoft YaHei', 'primaryColor': '#e3f2fd', 'lineColor': '#90caf9', 'borderColor': '#64b5f6'}}}%%
 flowchart TB
     subgraph UI层
         A1[主窗口] --> A2[输入面板]
@@ -77,7 +77,7 @@ flowchart TB
 - 默认上限 1000 条，防止大图结果爆炸
 
 ```mermaid
-%%{init: {'themeVariables': {'fontSize': '11px', 'fontFamily': 'Microsoft YaHei'}}}%%
+%%{init: {'themeVariables': {'fontSize': '9px', 'fontFamily': 'Microsoft YaHei'}}}%%
 flowchart LR
     S[开始] --> A[找入度0节点]
     A --> B{有候选?}
