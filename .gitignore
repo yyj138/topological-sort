@@ -34,3 +34,14 @@ target/
 *.tmp
 .DS_Store
 Thumbs.db
+<<<<<<< HEAD
+
+# Course reference materials (not deliverables)
+*.pdf
+*.doc
+=======
+/bin/
+>>>>>>> origin/dev-c
+
+# 本地报告文档，不入库
+docs/*.docx
