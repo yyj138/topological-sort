@@ -42,13 +42,25 @@
 ## 系统架构
 
 ```mermaid
-%%{init: {'themeVariables': {'fontSize': '13px', 'fontFamily': 'Microsoft YaHei'}}}%%
-flowchart LR
-    A[UI层] --> B[MainController]
-    B --> C[算法模块]
-    B --> D[可视化模块]
-    B --> E[IO模块]
-    B --> F[模型模块]
+%%{init: {'themeVariables': {'fontSize': '12px', 'fontFamily': 'Microsoft YaHei'}}}%%
+flowchart TB
+    subgraph UI层
+        A1[MainFrame 主窗口]
+        A2[InputPanel 输入面板]
+        A3[ResultPanel 结果面板]
+        A4[StatusBar 状态栏]
+    end
+    subgraph 控制层
+        B1[MainController 主控制器]
+    end
+    subgraph 功能模块层
+        C1[算法模块<br/>Kahn/全枚举/环检测]
+        C2[可视化模块<br/>GraphPanel/布局/缩放]
+        C3[IO模块<br/>解析/文件读写/导出]
+        C4[模型模块<br/>Graph/Vertex/Edge]
+    end
+    UI层 --> 控制层
+    控制层 --> 功能模块层
 ```
 
 ---
@@ -62,17 +74,18 @@ flowchart LR
 基于 DFS + 回溯，每层选择入度为 0 的节点递归，回溯恢复状态，默认上限 1000 条。
 
 ```mermaid
-%%{init: {'themeVariables': {'fontSize': '13px', 'fontFamily': 'Microsoft YaHei'}}}%%
+%%{init: {'themeVariables': {'fontSize': '12px', 'fontFamily': 'Microsoft YaHei'}}}%%
 flowchart LR
-    S[开始] --> A[找入度为0节点]
-    A --> B{还有候选}
-    B -->|是| C[选节点递归]
-    C --> D[回溯恢复]
-    D --> A
-    B -->|否| E[记录拓扑序]
-    E --> F{到上限}
-    F -->|否| A
-    F -->|是| G[返回]
+    S[开始] --> A[找出所有入度为0节点]
+    A --> B{还有候选节点?}
+    B -->|是| C[选一个节点加入结果]
+    C --> D[递归深入]
+    D --> E[回溯 恢复入度状态]
+    E --> B
+    B -->|否| F[记录一条完整拓扑序]
+    F --> G{达到1000条上限?}
+    G -->|否| A
+    G -->|是| H[停止返回]
 ```
 
 ### 3. 环检测
