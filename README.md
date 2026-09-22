@@ -42,13 +42,24 @@
 ## 系统架构
 
 ```mermaid
-%%{init: {'themeVariables': {'fontSize': '11px', 'fontFamily': 'Microsoft YaHei'}}}%%
-flowchart LR
-    A[UI层] --> B[MainController]
-    B --> C[算法]
-    B --> D[可视化]
-    B --> E[IO]
-    B --> F[模型]
+%%{init: {'themeVariables': {'fontSize': '11px', 'fontFamily': 'Microsoft YaHei', 'primaryColor': '#e3f2fd', 'lineColor': '#90caf9', 'borderColor': '#64b5f6'}}}%%
+flowchart TB
+    subgraph UI层
+        A1[主窗口] --> A2[输入面板]
+        A1 --> A3[结果面板]
+        A1 --> A4[状态栏]
+    end
+    subgraph 控制层
+        B1[MainController<br/>任务调度]
+    end
+    subgraph 功能模块层
+        C1[算法模块]
+        C2[可视化模块]
+        C3[IO模块]
+        C4[模型模块]
+    end
+    UI层 --> 控制层
+    控制层 --> 功能模块层
 ```
 
 ---
