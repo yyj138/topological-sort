@@ -1,0 +1,469 @@
+# 跨模块联调原始输出
+# 各段为不同版本与批次，不合并计数；原始字节保留。
+
+# BEGIN C-PNG-fc89dc3核查/复测输出.txt
+# Original SHA-256: f85bc94b43efb1353c34e7b486ac463886d28db0e5274f03775cc1bef7d1a9d5
+PASS default PNG readable
+PASS full PNG unchanged after 2000px viewport pan
+PASS zoom gesture changed viewport
+PASS full PNG unchanged after zoom plus pan
+PASS export preserves viewport state
+PASS dragged node expands PNG beyond viewport
+PASS export preserves dragged node position
+PASS negative node coordinates included
+PASS layout switch export matches fresh circular layout
+PASS wide layered graph expands export width
+PASS no graph exports without exception
+PASS empty Graph exports without exception
+PASS ImageExporter wrapper uses full export
+PASS original Graph unchanged
+SELF_LOOP_LEGEND_CHECK image=832x400 expectedRedArcPixels=155 actualRedArcPixels=0
+REMAINING_DEFECT: legend overlays the top-right self-loop edge.
+Passed focused checks: 14
+
+# END C-PNG-fc89dc3核查/复测输出.txt
+
+# BEGIN C-PNG-6f93909核查/复测输出.txt
+# Original SHA-256: 750ec878b185ddfc86982264bc8388177b72f334262514adaf02008e5f18479e
+PASS default PNG readable
+PASS full PNG unchanged after 2000px viewport pan
+PASS zoom gesture changed viewport
+PASS full PNG unchanged after zoom plus pan
+PASS export preserves viewport state
+PASS dragged node expands PNG beyond viewport
+PASS export preserves dragged node position
+PASS negative node coordinates included
+PASS layout switch export matches fresh circular layout
+PASS wide layered graph expands export width
+PASS no graph exports without exception
+PASS empty Graph exports without exception
+PASS ImageExporter wrapper uses full export
+PASS original Graph unchanged
+SELF_LOOP_LEGEND_CHECK image=832x400 expectedRedArcPixels=155 actualRedArcPixels=155
+PASS top-right self-loop red arc remains fully visible
+PASS all graph pixels below reserved legend band match unobscured reference
+Passed focused checks: 16
+
+# END C-PNG-6f93909核查/复测输出.txt
+
+# BEGIN AD-13f7a9b/test.TestDataParser.txt
+# Original SHA-256: 024dc9c3aa94575e0e0711b7d072777dc534d0e9d1ff14f45a5d8c98a0511f63
+========================================
+  DataParser 容错测试
+========================================
+
+【一、合法输入】
+  [PASS] 合法基本关系
+         → 图信息：节点 4，边 2
+  [PASS] 带注释行
+         → 图信息：节点 4，边 2
+  [PASS] 带空行
+         → 图信息：节点 4，边 2
+  [PASS] 行首尾有多余空格
+         → 图信息：节点 4，边 2
+  [PASS] 全角尖括号和逗号
+         → 图信息：节点 4，边 2
+  [PASS] 名称含内部空格
+         → 图信息：节点 2，边 1
+  [PASS] 自环保留为正常边
+         → 图信息：节点 1，边 1
+  [PASS] 区分大小写
+         → 图信息：节点 4，边 2
+
+【二、非法输入】
+  [PASS] 缺少左括号
+         → 行号 1：格式错误：缺少左括号 '<'
+  [PASS] 缺少右括号
+         → 行号 1：格式错误：缺少右括号 '>'
+  [PASS] 尖括号顺序错误
+         → 行号 1：格式错误：尖括号顺序错误
+  [PASS] 括号内为空
+         → 行号 1：格式错误：括号内为空
+  [PASS] 缺少逗号
+         → 行号 1：格式错误：缺少逗号分隔符
+  [PASS] 起点为空
+         → 行号 1：格式错误：起点名称为空
+  [PASS] 终点为空
+         → 行号 1：格式错误：终点名称为空
+  [PASS] 名称含非法字符（尖括号）
+         → 行号 1：起点名称包含非法字符：A<
+  [PASS] 名称含非法字符（逗号）
+         → 行号 1：终点名称包含非法字符：,B
+  [PASS] 名称中间含 Unicode 行分隔符 \u2028
+         → 行号 1：起点名称包含非法字符：A B
+  [PASS] 名称中间含 Unicode 行分隔符 \u0085
+         → 行号 1：起点名称包含非法字符：AB
+  [PASS] 名称首含 Unicode 行分隔符 \u2028
+         → 行号 1：起点名称包含非法字符： A
+  [PASS] 名称尾含 Unicode 行分隔符 \u2028
+         → 行号 1：终点名称包含非法字符： B
+  [PASS] 特殊空白 U+2003 起点的重复边
+         → 行号 2：重复的关系 <A,B>，已忽略
+         → 图信息：节点 2，边 1
+  [PASS] 特殊空白 U+2003 起点为空名称
+         → 行号 1：格式错误：起点名称为空
+  [PASS] 制表符不同端点不误判重复
+         → 图信息：节点 4，边 2
+  [PASS] 完全乱码行
+         → 行号 1：格式错误：缺少左括号 '<'
+  [PASS] null 输入不崩溃
+  [PASS] 空字符串输入不崩溃
+  [PASS] 只有空格输入不崩溃
+
+【三、混合输入】
+  [PASS] 重复边自动去重并产生警告
+         → 行号 2：重复的关系 <A,B>，已忽略
+         → 图信息：节点 2，边 1
+  [PASS] 合法+非法混合，错误行不影响合法行
+         → 行号 2：格式错误：缺少左括号 '<'
+         → 图信息：节点 4，边 2
+  [PASS] 注释+空格+合法+重复+非法混合
+         → 行号 6：格式错误：缺少左括号 '<'
+         → 行号 5：重复的关系 <A,B>，已忽略
+         → 图信息：节点 4，边 2
+  [PASS] 多条错误各有正确行号
+         → 行号 2：格式错误：缺少左括号 '<'
+         → 行号 4：格式错误：缺少左括号 '<'
+         → 图信息：节点 6，边 3
+  [PASS] 空文件（只有注释和空行）
+  [PASS] 自环+重复自环
+         → 行号 2：重复的关系 <A,A>，已忽略
+         → 图信息：节点 1，边 1
+  [PASS] 图1数据模拟（15门课程核心关系）
+         → 图信息：节点 15，边 16
+
+========================================
+  测试结果汇总：通过 35，失败 0
+========================================
+全部通过！
+
+# END AD-13f7a9b/test.TestDataParser.txt
+
+# BEGIN AD-13f7a9b/test.TestInputValidator.txt
+# Original SHA-256: 13bbf20d145b67c06686b6cb06e86488fd5bd13f88d9cf4e329dd05f5712e03b
+========================================
+  InputValidator 校验测试
+========================================
+
+【一、合法输入】
+  [PASS] 合法基本关系
+  [PASS] 带注释行
+  [PASS] 带空行
+  [PASS] 行首尾有多余空格
+  [PASS] 全角尖括号和逗号
+  [PASS] 名称含内部空格
+  [PASS] 自环保留为合法关系
+  [PASS] 区分大小写
+  [PASS] 中文名称
+
+【二、非法输入】
+  [PASS] 缺少左括号
+         → 行号 1：格式错误：缺少左括号 '<'
+  [PASS] 缺少右括号
+         → 行号 1：格式错误：缺少右括号 '>'
+  [PASS] 尖括号顺序错误
+         → 行号 1：格式错误：尖括号顺序错误
+  [PASS] 缺少逗号
+         → 行号 1：格式错误：缺少逗号分隔符
+  [PASS] 起点为空
+         → 行号 1：格式错误：起点名称为空
+  [PASS] 终点为空
+         → 行号 1：格式错误：终点名称为空
+  [PASS] 完全乱码行
+         → 行号 1：格式错误：缺少左括号 '<'
+  [PASS] 名称含非法字符（尖括号）
+         → 行号 1：起点名称包含非法字符：A<
+  [PASS] 名称含非法字符（逗号）
+         → 行号 1：终点名称包含非法字符：,B
+  [PASS] 名称含非法字符（换行符）
+         → 行号 1：格式错误：缺少右括号 '>'
+         → 行号 2：格式错误：缺少左括号 '<'
+  [PASS] 名称中间含 Unicode 行分隔符 \u2028
+         → 行号 1：起点名称包含非法字符：A B
+  [PASS] 名称中间含 Unicode 行分隔符 \u0085
+         → 行号 1：起点名称包含非法字符：AB
+  [PASS] 名称首含 Unicode 行分隔符 \u2028
+         → 行号 1：起点名称包含非法字符： A
+  [PASS] 名称尾含 Unicode 行分隔符 \u2028
+         → 行号 1：终点名称包含非法字符： B
+  [PASS] 特殊空白 U+2003 起点的重复边
+         → 行号 2：重复的关系 <A,B>，已忽略
+  [PASS] 特殊空白 U+2003 起点为空名称
+         → 行号 1：格式错误：起点名称为空
+  [PASS] 制表符不同端点不误判重复
+  [PASS] 括号内为空
+         → 行号 1：格式错误：括号内为空
+  [PASS] null 输入不崩溃
+  [PASS] 空字符串输入不崩溃
+  [PASS] 只有空格输入不崩溃
+
+【三、混合输入】
+  [PASS] 重复关系产生警告
+         → 行号 2：重复的关系 <A,B>，已忽略
+  [PASS] 合法+非法混合，错误行不影响合法行
+         → 行号 2：格式错误：缺少左括号 '<'
+  [PASS] 注释+空格+合法+重复+非法混合
+         → 行号 6：格式错误：缺少左括号 '<'
+         → 行号 5：重复的关系 <A,B>，已忽略
+  [PASS] 多条错误各有正确行号
+         → 行号 2：格式错误：缺少左括号 '<'
+         → 行号 4：格式错误：缺少左括号 '<'
+  [PASS] 空文件（只有注释和空行）
+  [PASS] 自环+重复自环
+         → 行号 2：重复的关系 <A,A>，已忽略
+  [PASS] 图1数据（15门课程）
+
+【四、与 DataParser 一致性验证】
+  [PASS] 内部空格名称：<MA 141,CS 225>
+  [PASS] 前有空格：<  A,B>
+
+========================================
+  测试结果汇总：通过 39，失败 0
+========================================
+全部通过！
+
+# END AD-13f7a9b/test.TestInputValidator.txt
+
+# BEGIN AD-13f7a9b/TaskTwoCloseCheck.txt
+# Original SHA-256: 49dfc3372ff9af2cb6a6aa308ee39c70edb482c2ed711fb72d9652e6776d9ab9
+PASS distinct tab-containing edges
+PASS tab endpoint identity preserved
+PASS actual duplicate still warned
+PASS separator 85 endpoint position 0
+PASS invalid separator not inserted 85 0
+PASS separator 85 endpoint position 1
+PASS invalid separator not inserted 85 1
+PASS separator 85 endpoint position 2
+PASS invalid separator not inserted 85 2
+PASS separator 85 endpoint position 3
+PASS invalid separator not inserted 85 3
+PASS separator 2028 endpoint position 0
+PASS invalid separator not inserted 2028 0
+PASS separator 2028 endpoint position 1
+PASS invalid separator not inserted 2028 1
+PASS separator 2028 endpoint position 2
+PASS invalid separator not inserted 2028 2
+PASS separator 2028 endpoint position 3
+PASS invalid separator not inserted 2028 3
+PASS separator 2029 endpoint position 0
+PASS invalid separator not inserted 2029 0
+PASS separator 2029 endpoint position 1
+PASS invalid separator not inserted 2029 1
+PASS separator 2029 endpoint position 2
+PASS invalid separator not inserted 2029 2
+PASS separator 2029 endpoint position 3
+PASS invalid separator not inserted 2029 3
+PASS ordinary Unicode whitespace and duplicate
+PASS Unicode-only source rejected
+PASS Unicode-only target rejected
+PASS empty brackets rejected
+PASS line number after valid row
+PASS correct error line
+PASS self loop preserved
+PASS cycle algorithm integration
+PASS small DAG
+PASS small complete orders
+PASS official figure1 parsed
+PASS figure1 shape
+PASS figure1 Kahn
+PASS figure1 complete 31185
+PASS all figure1 sequences valid and unique
+PASS original graph unchanged
+SUMMARY assertions passed=43
+
+# END AD-13f7a9b/TaskTwoCloseCheck.txt
+
+# BEGIN 取消导出原因核查/复测输出.txt
+# Original SHA-256: 3a1b8b95b0286c1d83cd12c8c912097a4b3d20173c3b1a7fed238d8211e6c8b2
+PASS ȡ�����.txt exportedRows=44
+PASS ȡ�����.csv exportedRows=44
+PASS actualAlgorithmResult reason=CANCELLED complete=false generated=44
+BOUNDARY: controlled callback + explicit metadata handoff; GUI cancel button and MainController not tested.
+
+# END 取消导出原因核查/复测输出.txt
+
+# BEGIN 会议核查-20260920/dev-e/test/test_E1_result.txt
+# Original SHA-256: b41b9f92232794988e1edf91a436aa8b099969f371300424f451e85008f18293
+==================== T‑E1 算法测试开始 ====================
+测试时间：本地运行；遵循接口契约V1.0；JDK版本:21.0.6
+输出文件：test/test_E1_result.txt
+读取图1数据文件：data\figure1.txt
+
+===== ① 正确性测试 =====
+[PASS] 正确性‑3节点DAG
+[PASS] 正确性‑4节点分叉DAG
+[PASS] 正确性‑链式DAG(唯一拓扑)
+    图1课程图 Kahn序列长度：15
+    图1课程图环检测返回：[]
+    图1枚举：generated=1000 stop=LIMIT_REACHED
+[PASS] 正确性‑图1课程先修图
+
+===== ② 边界测试 =====
+[PASS] 边界‑空图
+[PASS] 边界‑单节点无边
+[PASS] 边界‑全部孤立节点
+[PASS] 边界‑大量同层零入度节点
+
+===== ③ 异常‑含环图测试 =====
+[PASS] 环‑自环A→A
+[PASS] 环‑两节点互环
+[PASS] 环‑三节点长环
+
+===== 契约校验：EnumerationResult与入参语义 =====
+[PASS] 契约‑EnumerationResult.isComplete语义
+[PASS] 契约‑返回元数据与不可修改集合
+[PASS] 契约‑非法入参抛出异常
+[PASS] 契约‑null入参拒绝
+[PASS] 契约‑maxResults=0不限制结果
+[PASS] 契约‑算法隔离性(原图不变/多次调用稳定/序列独立)
+
+===== ④ 性能测试：1000节点随机DAG =====
+    1000节点DAG，边数=1241；Kahn耗时=2 ms；环检测耗时=0 ms；枚举耗时=19 ms；已生成序列数量=1000；停止原因=LIMIT_REACHED
+[PASS] 性能‑1000节点DAG(上限1000)
+
+==================== 测试汇总 ====================
+PASS：18   FAIL：0
+==================================================
+
+# END 会议核查-20260920/dev-e/test/test_E1_result.txt
+
+# BEGIN 会议核查-20260920/复跑-A最新-D最新-E最新/test/test_E1_result.txt
+# Original SHA-256: 36efa112237561c5a8ab93970343fed5a8dfa67acfe2194608eb131196fdffc4
+==================== T‑E1 算法测试开始 ====================
+测试时间：本地运行；遵循接口契约V1.0；JDK版本:21.0.6
+输出文件：test/test_E1_result.txt
+读取图1数据文件：data\figure1.txt
+
+===== ① 正确性测试 =====
+[PASS] 正确性‑3节点DAG
+[PASS] 正确性‑4节点分叉DAG
+[PASS] 正确性‑链式DAG(唯一拓扑)
+    图1课程图 Kahn序列长度：15
+    图1课程图环检测返回：[]
+    图1枚举：generated=1000 stop=LIMIT_REACHED
+[PASS] 正确性‑图1课程先修图
+
+===== ② 边界测试 =====
+[PASS] 边界‑空图
+[PASS] 边界‑单节点无边
+[PASS] 边界‑全部孤立节点
+[PASS] 边界‑大量同层零入度节点
+
+===== ③ 异常‑含环图测试 =====
+[PASS] 环‑自环A→A
+[PASS] 环‑两节点互环
+[PASS] 环‑三节点长环
+
+===== 契约校验：EnumerationResult与入参语义 =====
+[PASS] 契约‑EnumerationResult.isComplete语义
+[PASS] 契约‑返回元数据与不可修改集合
+[PASS] 契约‑非法入参抛出异常
+[PASS] 契约‑null入参拒绝
+[PASS] 契约‑maxResults=0不限制结果
+[PASS] 契约‑算法隔离性(原图不变/多次调用稳定/序列独立)
+
+===== ④ 性能测试：1000节点随机DAG =====
+    1000节点DAG，边数=1241；Kahn耗时=0 ms；环检测耗时=0 ms；枚举耗时=20 ms；已生成序列数量=1000；停止原因=LIMIT_REACHED
+[PASS] 性能‑1000节点DAG(上限1000)
+
+==================== 测试汇总 ====================
+PASS：18   FAIL：0
+==================================================
+
+# END 会议核查-20260920/复跑-A最新-D最新-E最新/test/test_E1_result.txt
+
+# BEGIN 会议核查-20260920/复跑-A最新-D最新-E最新/test/test_E2_result.txt
+# Original SHA-256: 3b6f6ce7126587fcaac072cf012e4624df6b7d391e08fb6586256922e1c2235a
+========================================
+      T‑E2 解析器容错测试 E组员交付
+依据：接口契约V1.0、docs/异常与边界场景清单.md V1.8
+========================================
+
+[PASS] T‑E2‑01 缺少左括号
+      ERR: 第 1 行：格式错误：缺少左括号 '<'
+[PASS] T‑E2‑02 缺少右括号
+      ERR: 第 1 行：格式错误：缺少右括号 '>'
+[PASS] T‑E2‑03 缺少逗号分隔符
+      ERR: 第 1 行：格式错误：缺少逗号分隔符
+[PASS] T‑E2‑04 乱码行无任何尖括号
+      ERR: 第 1 行：格式错误：缺少左括号 '<'
+[PASS] T‑E2‑07 含环图解析层不报错
+      Graph info: vertex=3 edge=3
+[PASS] T‑E2‑05 重复边 <A,B>出现两次
+      WARN: 第 2 行：重复的关系 <A,B>，已忽略
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑06 自环 <A,A>（解析层不报错，交给环检测）
+      Graph info: vertex=1 edge=1
+[PASS] T‑E2‑08 null输入（空图无解析错误）
+[PASS] T‑E2‑12 注释+空行混合输入
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑13 全角尖括号全角逗号输入
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑14 行首尾多余空格
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑16 括号内为空 <>
+      ERR: 第 1 行：格式错误：括号内为空
+[PASS] T‑E2‑17 尖括号顺序错误 >A,B<
+      ERR: 第 1 行：格式错误：尖括号顺序错误
+[PASS] T‑E2‑18 起点名称为空 <,B>
+      ERR: 第 1 行：格式错误：起点名称为空
+[PASS] T‑E2‑19 终点名称为空 <A,>
+      ERR: 第 1 行：格式错误：终点名称为空
+[PASS] T‑E2‑20 名称包含非法分隔符 <A<,B>
+      ERR: 第 1 行：起点名称包含非法字符：A<
+[PASS] T‑E2‑21 名称中间含LINE SEPARATOR U+2028
+      ERR: 第 1 行：起点名称包含非法字符：A\u2028B
+[PASS] T‑E2‑21b 名称中间含NEL U+0085
+      ERR: 第 1 行：起点名称包含非法字符：A\u0085B
+[PASS] T‑E2‑21c 名称中间含PARAGRAPH SEPARATOR U+2029
+      ERR: 第 1 行：起点名称包含非法字符：A\u2029B
+[PASS] T‑E2‑21d 起点名称首部含U+2028 <U+2028A,B>
+      ERR: 第 1 行：起点名称包含非法字符：\u2028A
+[PASS] T‑E2‑21e 终点名称尾部含U+2028 <A,BU+2028>
+      ERR: 第 1 行：终点名称包含非法字符：B\u2028
+[PASS] T‑E2‑21f 起点首部含U+0085 <U+0085A,B>
+      ERR: 第 1 行：起点名称包含非法字符：\u0085A
+[PASS] T‑E2‑21g 终点尾部含U+2029 <A,BU+2029>
+      ERR: 第 1 行：终点名称包含非法字符：B\u2029
+[SKIP‑兜底未触发] T‑E2‑22 Graph名称校验兜底异常（防护兜底）
+      ERR: 第 1 行：起点名称包含非法字符：\u0085OK
+[PASS] T‑E2‑23 起点前带U+2003空白 <U+2003A,B>
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑23b 终点后带U+2003空白 <A,U+2003B>
+      Graph info: vertex=2 edge=1
+[PASS] T‑E2‑23c strip后起点为空 <U+2003,B>
+      ERR: 第 1 行：格式错误：起点名称为空
+[PASS] 合法：节点名称带内部空格 <MA 141,CS 225>
+      Graph info: vertex=2 edge=1
+[PASS] 混合输入：合法、错误行，校验行号定位
+      ERR: 第 2 行：格式错误：缺少左括号 '<'
+      Graph info: vertex=4 edge=2
+[PASS] 空字符串输入
+
+---------- 一致性校验：DataParser vs InputValidator ----------
+[PASS]一致性校验输入="<A,B>"
+[PASS]一致性校验输入="<,B>"
+[PASS]一致性校验输入=">A,B<"
+[PASS]一致性校验输入="a,b>"
+[PASS]一致性校验输入="<A,A>"
+[PASS]一致性校验输入="<A,B>\n<A,B>"
+[PASS]一致性校验输入="<A,A>\n<A,A>"
+[PASS]一致性校验输入="＜A，B＞"
+[PASS]一致性校验输入="#abc\n  <X,Y>  "
+[PASS]一致性校验输入="<\u2003A,B>"
+[PASS]一致性校验输入="<A,\u2003B>"
+[PASS]一致性校验输入="<\u2003,B>"
+[PASS]一致性校验输入="<A,\u2003>"
+[PASS]一致性校验输入="<\u2028A,B>"
+[PASS]一致性校验输入="<A,B\u2029>"
+
+========================================
+【主解析用例统计】
+PASS = 29 ，SKIP(兜底未触发)=1，FAIL = 0
+【DataParser‑InputValidator一致性校验统计】
+PASS = 15，FAIL = 0
+========================================
+✅全部业务解析容错用例通过；SKIP代表兜底防护未触发，非缺陷
+输出记录已保存到 test/test_E2_result.txt，可以提交D用于T‑D7测试报告
+
+# END 会议核查-20260920/复跑-A最新-D最新-E最新/test/test_E2_result.txt
