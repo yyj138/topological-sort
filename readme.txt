@@ -15,28 +15,25 @@
 一、项目目录结构
 ============================================================
 topological-sort/
-├─ README.md               # Markdown版本项目说明文档
-├─ README.txt              # 本说明文档
-├─ .gitignore              # Git忽略文件配置
-├─ docs/                   # 项目文档
-│  ├─ 接口契约.md          # V0.1 已冻结
-│  └─ 代码规范.md
-├─ data/                   # 样例输入图文件
-│  ├─ figure1.txt          # 15门课程先修样例图
-│  └─ curriculum.txt       # 全系课程图，≥30节点
-├─ src/                    # 源代码
-│  ├─ model/               # 图模型：Vertex / Edge / Graph
-│  ├─ algorithm/           # 算法模块：Kahn / 全拓扑枚举 / 环检测
-│  ├─ io/                  # IO模块：DataParser / FileManager / ImageExporter
-│  ├─ view/                # 绘图面板：GraphPanel / LayoutManager
-│  ├─ ui/                  # GUI界面：MainFrame / InputPanel / ResultPanel / MainController
-│  ├─ util/                # 工具类：Constants / InputValidator
-│  └─ AlgorithmRunner.java # 命令行独立入口（T‑E4）
-├─ test/                   # 测试源码：算法测试、解析容错测试（T‑E1、T‑E2）
-├─ screenshots/            # 程序运行截图
-└─ run_tests.bat           # Windows一键冒烟测试脚本（T‑E3）
+├── README.md                  # 本文件
+├── .gitignore
+├── run_tests.bat              # 冒烟自动化测试脚本
+├── docs/                      # docs目录下存放Java+Swing课程拓扑排序桌面软件全套设计、接口、测试与协作文档
+├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
+├── src/
+│   ├── model/                 # Vertex / Edge / Graph
+│   ├── algorithm/             # Kahn / 枚举 / 环检测
+│   ├── io/                    # DataParser / FileManager / ParseIssue / ParseResult / ImageExporter
+│   ├── view/                  # GraphPanel（静态环形画布），LayoutManager（分层布局）
+│   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
+│   ├── util/                  # UIStyle / ExceptionHandler / InputValidator
+ |   └── AlgorithmRunner.java   # 无 GUI 的命令行独立测试入口
+├── test/                      # 算法测试（四类用例）代码 / 解析器测试代码 / 自测代码 / txt测试报告
+├── 会议记录/                   # 五个会议记录（doc + pdf）
+├── 拓扑排序项目-团队任务执行方案 # 分工细节
+└── screenshots/               # 运行截图
 
-说明：bin目录为javac编译class文件自动生成，不需要上传版本库，干净环境编译时自动创建。
+说明：bin和out目录为javac编译class文件自动生成，不需要上传版本库，干净环境编译时自动创建。
 
 ============================================================
 二、Windows平台使用
@@ -86,8 +83,18 @@ java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt test/out_sam
 --------------------------
 方式3：运行图形界面GUI
 --------------------------
-编译完成后，在项目根目录执行：
-java -Dfile.encoding=UTF-8 -cp bin ui.MainFrame
+
+# 编译src和test到out文件夹中
+$outDir=".\out"
+if(Test-Path $outDir){Remove-Item -Recurse -Force $outDir}
+New-Item -ItemType Directory -Path $outDir | Out-Null
+$src=Get-ChildItem src -Recurse -Filter *.java|Where-Object{$_.Name -ne "package-info.java"}
+$test=Get-ChildItem test -Recurse -Filter *.java|Where-Object{$_.Name -ne "package-info.java"}
+javac -encoding UTF-8 -d $outDir @($src.FullName+$test.FullName)
+
+# 运行GUI
+java -cp out ui.MainFrame
+
 
 --------------------------
 方式4：打包生成可执行jar包（可选）
