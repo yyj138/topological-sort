@@ -29,37 +29,25 @@
 
 ## 技术栈
 
-```mermaid
-graph LR
-    A[开发语言<br/>Java 21 兼容JDK8+] --> B[GUI框架<br/>Java Swing 零依赖]
-    B --> C[数据格式<br/>纯文本.txt 无数据库]
-    C --> D[版本管理<br/>Git + GitHub]
-    D --> E[运行平台<br/>Windows/Linux/macOS]
-```
+| 项 | 说明 |
+|----|------|
+| 开发语言 | Java（JDK 21 开发，兼容 JDK 8+） |
+| GUI 框架 | Java Swing（零第三方依赖） |
+| 数据存储 | 纯文本文件 `.txt`，无数据库 |
+| 版本管理 | Git + GitHub |
+| 运行平台 | Windows / Linux / macOS |
 
 ---
 
 ## 系统架构
 
 ```mermaid
-flowchart TB
-    subgraph UI层
-        A1[MainFrame 主窗口]
-        A2[InputPanel 输入面板]
-        A3[ResultPanel 结果面板]
-        A4[StatusBar 状态栏]
-    end
-    subgraph 控制层
-        B1[MainController 主控制器<br/>任务调度/线程管理/模块对接]
-    end
-    subgraph 功能模块层
-        C1[算法模块<br/>Kahn/全枚举/环检测]
-        C2[可视化模块<br/>GraphPanel/布局/缩放]
-        C3[IO模块<br/>解析/文件读写/导出]
-        C4[模型模块<br/>Graph/Vertex/Edge]
-    end
-    UI层 --> 控制层
-    控制层 --> 功能模块层
+flowchart LR
+    A[UI层<br/>主窗口/输入/结果/状态栏] --> B[控制层<br/>MainController 任务调度]
+    B --> C[算法模块]
+    B --> D[可视化模块]
+    B --> E[IO模块]
+    B --> F[模型模块]
 ```
 
 ---
@@ -70,44 +58,40 @@ flowchart TB
 基于入度队列的经典算法，时间复杂度 O(V+E)，每次选取入度为 0 的节点加入结果，更新后继入度，直到队列为空。
 
 ### 2. 全拓扑排序枚举
-基于 DFS + 回溯：
+基于 DFS + 回溯，每层选择入度为 0 的节点递归，回溯恢复状态，默认上限 1000 条。
+
 ```mermaid
 flowchart LR
-    S[开始] --> A[找出所有入度为0的节点]
-    A --> B{还有候选节点?}
-    B -->|是| C[选一个节点加入结果]
-    C --> D[递归深入]
-    D --> E[回溯 恢复入度]
-    E --> B
-    B -->|否| F[记录一条完整拓扑序]
-    F --> G{达到上限?}
-    G -->|否| A
-    G -->|是| H[停止返回]
+    S[开始] --> A[找入度为0的节点]
+    A --> B{还有候选?}
+    B -->|是| C[选一个节点递归]
+    C --> D[回溯恢复]
+    D --> A
+    B -->|否| E[记录拓扑序]
+    E --> F{到上限?}
+    F -->|否| A
+    F -->|是| G[返回]
 ```
 
-### 3. 环检测与环路径定位
-- Kahn 计数法判定：出队节点数 < 总节点数 则存在环
-- DFS 三色标记法定位具体环路径
+### 3. 环检测
+Kahn 计数法判定有环，DFS 三色标记输出具体环路径。
 
 ---
 
 ## 项目结构
 
-```mermaid
-flowchart TB
-    Root[topological-sort]
-    Root --> Src[src/ 源码]
-    Root --> Data[data/ 测试数据]
-    Root --> Docs[docs/ 设计文档]
-    Root --> Test[test/ 单元测试]
-    Src --> Model[model/ 图结构]
-    Src --> Algo[algorithm/ 核心算法]
-    Src --> IO[io/ 输入输出]
-    Src --> View[view/ 可视化组件]
-    Src --> UI[ui/ GUI界面]
-    Src --> Util[util/ 工具类]
-    Data --> F1[figure1.txt 15节点示例]
-    Data --> F2[curriculum.txt 43节点课程]
+```
+src/
+├── model/          # 图数据结构（Vertex/Edge/Graph）
+├── algorithm/      # 核心算法（Kahn/全枚举/环检测）
+├── io/             # 输入输出（解析/文件读写/导出）
+├── view/           # 可视化组件（GraphPanel/布局管理器）
+├── ui/             # GUI界面（主窗口/输入面板/结果面板/控制器）
+├── util/           # 工具类（UI样式/异常处理/输入校验）
+└── AlgorithmRunner.java  # 命令行测试入口
+data/              # 测试数据（figure1.txt/curriculum.txt）
+docs/              # 设计文档/接口契约/测试记录
+test/              # 单元测试代码
 ```
 
 ---
@@ -130,26 +114,26 @@ flowchart TB
 - JDK 8 或以上版本
 - Git
 
-### 编译运行
+### 编译运行（Windows PowerShell）
 
 ```powershell
 # 克隆仓库
 git clone https://github.com/yyj138/topological-sort.git
 cd topological-sort
 
-# 编译源码
+# 编译
 javac -encoding UTF-8 -d out (Get-ChildItem -Recurse -Filter *.java src | where name -ne package-info).FullName
 
-# 启动图形界面
+# 启动 GUI
 java -cp out ui.MainFrame
 
-# 命令行测试（无需GUI）
+# 命令行测试
 java -cp out AlgorithmRunner data/figure1.txt
 ```
 
 ---
 
-## 数据格式说明
+## 数据格式
 
 每行一条关系，西文尖括号格式：`<先修课程,后续课程>`，表示存在一条从先修到后续的有向边。
 
@@ -169,14 +153,10 @@ java -cp out AlgorithmRunner data/figure1.txt
 
 ## 项目里程碑
 
-```mermaid
-gantt
-    title 项目进度时间线
-    dateFormat  YYYY-MM-DD
-    section 开发阶段
-    接口冻结           :done, a1, 2026-09-17, 1d
-    核心功能MVP        :done, a2, 2026-09-18, 3d
-    中期汇报演示       :active, a3, 2026-09-22, 2d
-    功能冻结测试       :a4, after a3, 3d
-    最终验收交付       :a5, 2026-09-28, 1d
-```
+| 日期 | 阶段 | 状态 |
+|------|------|------|
+| 09-17 | 接口冻结，模块开发启动 | 已完成 |
+| 09-20 | 核心功能跑通，MVP版本完成 | 已完成 |
+| 09-22 | 中期汇报演示 | 进行中 |
+| 09-23 | 功能冻结，进入测试阶段 | 待开始 |
+| 09-28 | 最终验收交付 | 待开始 |
