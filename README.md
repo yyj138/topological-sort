@@ -1,4 +1,4 @@
-# 拓扑排序应用软件（Topological Sort Application）
+﻿# 拓扑排序应用软件（Topological Sort Application）
 
 > 高级算法原理实践课程项目 · 基于 Java Swing 的有向图拓扑排序枚举与可视化工具
 
@@ -31,11 +31,14 @@
 
 | 项 | 说明 |
 |----|------|
-| 开发语言 | Java（JDK 21 开发，兼容 JDK 8+） |
-| GUI 框架 | Java Swing（零第三方依赖，JDK 内置） |
+| 开发&运行Java版本 | **使用 JDK 21 编译和运行，本机已验证 JDK 21.0.6** |
+| GUI 框架 | Java Swing（JDK内置标准库，无需额外安装） |
+| 依赖 | **仅使用JDK标准库，无任何第三方绘图库、数据库、服务端依赖** |
 | 数据存储 | 纯文本文件 `.txt`，无数据库，满足任务书要求 |
 | 版本管理 | Git + GitHub，分支开发，代码评审合并 |
 | 运行平台 | Windows / Linux / macOS 跨平台 |
+| 字符编码 | 源码、输入输出全部采用 UTF‑8，编译需指定 `-encoding UTF‑8` |
+| 字体 | GUI画布：Microsoft YaHei；文本区域使用逻辑字体，系统需具备可用中文字体 |
 
 ---
 
@@ -95,17 +98,24 @@ flowchart LR
 ## 项目结构
 
 ```
-src/
-├── model/          # 图数据结构（Vertex/Edge/Graph）
-├── algorithm/      # 核心算法（Kahn/全枚举/环检测）
-├── io/             # 输入输出（解析/文件读写/导出）
-├── view/           # 可视化组件（GraphPanel/布局管理器）
-├── ui/             # GUI界面（主窗口/输入面板/结果面板/控制器）
-├── util/           # 工具类（UI样式/异常处理/输入校验）
-└── AlgorithmRunner.java  # 命令行测试入口
-data/              # 测试数据（figure1.txt/curriculum.txt）
-docs/              # 设计文档/接口契约/测试记录
-test/              # 单元测试代码
+topological-sort/
+├── README.md                 
+├── .gitignore
+├── run_tests.bat              # 冒烟自动化测试脚本
+├── docs/                      # docs目录下存放Java+Swing课程拓扑排序桌面软件全套设计、接口、测试与协作文档
+├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
+├── src/
+│   ├── model/                 # Vertex / Edge / Graph
+│   ├── algorithm/             # Kahn / 枚举 / 环检测
+│   ├── io/                    # DataParser / FileManager / ParseIssue / ParseResult / ImageExporter
+│   ├── view/                  # GraphPanel（静态环形画布），LayoutManager（分层布局）
+│   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
+│   ├── util/                  # UIStyle / ExceptionHandler / InputValidator
+|   └── AlgorithmRunner.java   # 无 GUI 的命令行独立测试入口
+├── test/                      # 算法测试（四类用例）代码 / 解析器测试代码 / 自测代码 / txt测试报告
+├── 会议记录/                   # 五个会议记录（doc + pdf）
+├── 拓扑排序项目-团队任务执行方案 # 分工细节
+└── screenshots/               # 运行截图
 ```
 
 ---
@@ -125,7 +135,7 @@ test/              # 单元测试代码
 ## 快速开始
 
 ### 环境要求
-- JDK 8 或以上版本
+- 使用 JDK 21 编译和运行，本机已验证 JDK 21.0.6
 - Git
 
 ### 编译运行（Windows PowerShell）
@@ -143,6 +153,9 @@ java -cp out ui.MainFrame
 
 # 命令行测试（无需GUI）
 java -cp out AlgorithmRunner data/figure1.txt
+
+# 运行run_tests.bat
+克隆仓库里双击即可
 ```
 
 ---
@@ -171,6 +184,7 @@ java -cp out AlgorithmRunner data/figure1.txt
 |------|------|------|
 | 09-17 | 接口冻结，模块开发启动 | 已完成 |
 | 09-20 | 核心功能跑通，MVP版本完成 | 已完成 |
-| 09-22 | 中期汇报演示 | 进行中 |
-| 09-23 | 功能冻结，进入测试阶段 | 待开始 |
-| 09-28 | 最终验收交付 | 待开始 |
+| 09-22 | 中期汇报演示，各模块代码合并完成 | 已完成 |
+| 09-22~09-26 | 功能测试与bug修复，UI优化 | 进行中 |
+| 09-27 | 最终报告整理与交付 | 待开始 |
+| 09-28 | 最终现场答辩 | 待开始 |
