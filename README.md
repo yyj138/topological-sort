@@ -31,11 +31,22 @@
 
 | 项 | 说明 |
 |----|------|
+<<<<<<< HEAD
 | 开发语言 | Java（JDK 21 开发，兼容 JDK 8+） |
 | GUI 框架 | Java Swing（零第三方依赖，JDK 内置） |
 | 数据存储 | 纯文本文件 `.txt`，无数据库，满足任务书要求 |
 | 版本管理 | Git + GitHub，分支开发，代码评审合并 |
 | 运行平台 | Windows / Linux / macOS 跨平台 |
+=======
+| 开发&运行Java版本 | **使用 JDK 21 编译和运行，本机已验证 JDK 21.0.6** |
+| GUI 框架 | Java Swing（JDK内置标准库，无需额外安装） |
+| 依赖 | **仅使用JDK标准库，无任何第三方绘图库、数据库、服务端依赖** |
+| 数据存储 | 纯文本文件 `.txt`，无数据库，满足任务书要求 |
+| 版本管理 | Git + GitHub，分支开发，代码评审合并 |
+| 运行平台 | Windows / Linux / macOS 跨平台 |
+| 字符编码 | 源码、输入输出全部采用 UTF‑8，编译需指定 `-encoding UTF‑8` |
+| 字体 | GUI画布：Microsoft YaHei；文本区域使用逻辑字体，系统需具备可用中文字体 |
+>>>>>>> origin/dev-e
 
 ---
 
@@ -95,6 +106,7 @@ flowchart LR
 ## 项目结构
 
 ```
+<<<<<<< HEAD
 src/
 ├── model/          # 图数据结构（Vertex/Edge/Graph）
 ├── algorithm/      # 核心算法（Kahn/全枚举/环检测）
@@ -106,12 +118,33 @@ src/
 data/              # 测试数据（figure1.txt/curriculum.txt）
 docs/              # 设计文档/接口契约/测试记录
 test/              # 单元测试代码
+=======
+topological-sort/
+├── README.md                 
+├── .gitignore
+├── run_tests.bat              # 冒烟自动化测试脚本
+├── docs/                      # docs目录下存放Java+Swing课程拓扑排序桌面软件全套设计、接口、测试与协作文档
+├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
+├── src/
+│   ├── model/                 # Vertex / Edge / Graph
+│   ├── algorithm/             # Kahn / 枚举 / 环检测
+│   ├── io/                    # DataParser / FileManager / ParseIssue / ParseResult / ImageExporter
+│   ├── view/                  # GraphPanel（静态环形画布），LayoutManager（分层布局）
+│   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
+│   ├── util/                  # UIStyle / ExceptionHandler / InputValidator
+|   └── AlgorithmRunner.java   # 无 GUI 的命令行独立测试入口
+├── test/                      # 算法测试（四类用例）代码 / 解析器测试代码 / 自测代码 / txt测试报告
+├── 会议记录/                   # 五个会议记录（doc + pdf）
+├── 拓扑排序项目-团队任务执行方案 # 分工细节
+└── screenshots/               # 运行截图
+>>>>>>> origin/dev-e
 ```
 
 ---
 
 ## 成员分工
 
+<<<<<<< HEAD
 | 姓名 | 学号 | 负责模块 | 实际完成工作 |
 |------|------|---------|-------------|
 | 骆深敏 | 2024611026 | A 算法模块 | 设计Graph/Vertex图数据结构、实现Kahn单条排序、DFS回溯全拓扑枚举（1000条上限）、环检测与环路径定位、编写模块接口契约、整理算法验证记录和详细设计报告 |
@@ -119,13 +152,26 @@ test/              # 单元测试代码
 | 戴燕岚 | 2024611180 | C 可视化模块 | 实现GraphPanel节点边绘制、分层/环形双布局切换、滚轮缩放/拖拽平移/节点拖动、拓扑序五色轮换高亮与序号徽章、右下角悬浮缩放按钮、左上角放大查看弹窗、PNG导出 |
 | 黄佳慧 | 2024611022 | D IO模块 | 实现DataParser格式解析与错误行号定位、InputValidator输入校验、FileManager导出TXT/CSV、整理新版curriculum.txt数据、编写异常边界场景清单、整理测试输出文档 |
 | 吴丽梅 | 2024611020 | E 测试与交付 | 编写readme.txt运行说明、完成E1/E2功能测试、整理四次会议记录、录制中期汇报演示视频、编写用户手册、负责最终工程打包交付 |
+=======
+| 成员 | 学号 | 负责模块 |
+|------|------|---------|
+| 易雨杰 | 2024611209 | GUI 主框架 + 交互控制 + 项目统筹 |
+| 骆深敏 | 2024611026 | 架构设计 + 核心算法 + 文档统筹 |
+| 戴燕岚 | 2024611180 | 关系图可视化 + 图片导出 |
+| 黄佳慧 | 2024611022 | 数据解析 + 导入导出 + 异常处理 |
+| 吴丽梅 | 2024611020 | 测试 + 工程交付 + 汇报材料 |
+>>>>>>> origin/dev-e
 
 ---
 
 ## 快速开始
 
 ### 环境要求
+<<<<<<< HEAD
 - JDK 8 或以上版本
+=======
+- 使用 JDK 21 编译和运行，本机已验证 JDK 21.0.6
+>>>>>>> origin/dev-e
 - Git
 
 ### 编译运行（Windows PowerShell）
@@ -143,6 +189,12 @@ java -cp out ui.MainFrame
 
 # 命令行测试（无需GUI）
 java -cp out AlgorithmRunner data/figure1.txt
+<<<<<<< HEAD
+=======
+
+# 运行run_tests.bat
+克隆仓库里双击即可
+>>>>>>> origin/dev-e
 ```
 
 ---
