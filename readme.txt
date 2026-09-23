@@ -21,7 +21,7 @@ topological-sort/
 ├── README.md                 
 ├── .gitignore
 ├── run_tests.bat              # 冒烟自动化测试脚本
-├── docs/                      # docs目录下存放Java+Swing课程拓扑排序桌面软件全套设计、接口、测试与协作文档
+├── docs/                      # docs目录下存放Java+Swing课程拓扑排序桌面软件全套设计、接口、测试与协作文档，会议记录
 ├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
 ├── src/
 │   ├── model/                 # Vertex / Edge / Graph
@@ -32,8 +32,6 @@ topological-sort/
 │   ├── util/                  # UIStyle / ExceptionHandler / InputValidator
  |   └── AlgorithmRunner.java   # 无 GUI 的命令行独立测试入口
 ├── test/                      # 算法测试（四类用例）代码 / 解析器测试代码 / 自测代码 / txt测试报告
-├── 会议记录/                   # 五个会议记录（doc + pdf）
-├── 拓扑排序项目-团队任务执行方案 # 分工细节
 └── screenshots/               # 运行截图
 
 说明：bin和out目录为javac编译class文件自动生成，不需要上传版本库，干净环境编译时自动创建。
