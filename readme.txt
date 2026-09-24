@@ -18,10 +18,12 @@
 一、项目目录结构
 ============================================================
 topological-sort/
-├── README.md                 
+├── readme.txt                 
 ├── .gitignore
+├── TopoSortApp.jar           # 可运行Jar包(T‑D8交付产物)
+├── run.bat                   # Windows双击启动脚本(T‑D8交付产物)
 ├── run_tests.bat              # 冒烟自动化测试脚本
-├── docs/                      # docs目录下存放Java+Swing课程拓扑排序桌面软件全套设计、接口、测试与协作文档
+├── docs/                      # docs目录下存放Java+Swing课程拓扑排序桌面软件全套设计、接口、测试与协作文档，会议记录
 ├── data/                      # figure1.txt（15 门课程）、curriculum.txt（全系 ≥30 节点）
 ├── src/
 │   ├── model/                 # Vertex / Edge / Graph
@@ -30,17 +32,31 @@ topological-sort/
 │   ├── view/                  # GraphPanel（静态环形画布），LayoutManager（分层布局）
 │   ├── ui/                    # MainFrame / InputPanel / ResultPanel / MainController / StatusBar
 │   ├── util/                  # UIStyle / ExceptionHandler / InputValidator
- |   └── AlgorithmRunner.java   # 无 GUI 的命令行独立测试入口
+│   └── AlgorithmRunner.java   # 无 GUI 的命令行独立测试入口
 ├── test/                      # 算法测试（四类用例）代码 / 解析器测试代码 / 自测代码 / txt测试报告
-├── 会议记录/                   # 五个会议记录（doc + pdf）
-├── 拓扑排序项目-团队任务执行方案 # 分工细节
 └── screenshots/               # 运行截图
-
 说明：bin和out目录为javac编译class文件自动生成，不需要上传版本库，干净环境编译时自动创建。
 
 ============================================================
 二、Windows平台使用
 ============================================================
+--------------------------
+方式0：直接运行打包完成的GUI程序（T‑D8，推荐，无需编译）
+--------------------------
+> 前提：本机安装JDK21并配置环境变量；TopoSortApp.jar、run.bat必须与data文件夹处于同一个根目录。
+
+方式0‑1：Jar命令行启动
+1. 打开cmd控制台，进入项目根目录 topological‑sort
+2. 执行命令：
+java -jar "TopoSortApp.jar"
+3. 执行后直接弹出拓扑排序应用软件图形界面。
+
+方式0‑2：双击bat脚本启动（Windows推荐）
+1. 在项目根目录找到 run.bat
+2. 直接双击 run.bat 即可启动GUI程序。
+> 说明：该方式附带控制台窗口，程序发生异常不会闪退，可以查看报错堆栈用于调试。
+> 重要提醒：data文件夹必须与TopoSortApp.jar、run.bat放在同一目录，否则示例数据无法加载。
+
 --------------------------
 方式1：一键冒烟测试（Windows专用）
 --------------------------
@@ -77,7 +93,7 @@ test\*.java
 java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt
 
 # 用法2：控制台输出同时写入日志文件
-java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt test/out_sample.txt
+java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt test/algorithm_runner_sample_output.txt
 
 参数说明：
     第一个参数：输入图文本文件路径（相对路径，基于项目根目录topological-sort/）
@@ -86,17 +102,26 @@ java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt test/out_sam
 --------------------------
 方式3：运行图形界面GUI
 --------------------------
+# 说明：该方式直接从源码编译运行，不需要Jar包；需要 src、test 源码完整存在。
+# 在项目根目录 topological-sort/ 下执行以下CMD命令：
 
-# 编译src和test到out文件夹中
-$outDir=".\out"
-if(Test-Path $outDir){Remove-Item -Recurse -Force $outDir}
-New-Item -ItemType Directory -Path $outDir | Out-Null
-$src=Get-ChildItem src -Recurse -Filter *.java|Where-Object{$_.Name -ne "package-info.java"}
-$test=Get-ChildItem test -Recurse -Filter *.java|Where-Object{$_.Name -ne "package-info.java"}
-javac -encoding UTF-8 -d $outDir @($src.FullName+$test.FullName)
-
-# 运行GUI
+清理旧编译输出目录 out
+递归收集src、test下全部Java源文件，排除 package‑info.java
+UTF‑8编译，class输出到 out
+删除临时源文件列表，存在才删除，避免文件不存在时报错
+启动图形界面GUI
+if exist out rmdir /s /q out
+mkdir out
+dir /s /b src\*.java | findstr /v "package-info.java" > sources_temp.txt
+dir /s /b test\*.java | findstr /v "package-info.java" >> sources_temp.txt
+javac -encoding UTF-8 -d out @sources_temp.txt
+if exist sources_temp.txt del sources_temp.txt
 java -cp out ui.MainFrame
+
+⚠️注意：
+1. 必须在项目根目录执行，不要进入src子文件夹；
+2. sources_temp.txt 为运行时临时文件，脚本执行完毕自动删除，不需要随项目提交；
+3. 此方式用于开发调试；验收直接优先使用【方式0】运行 TopoSortApp.jar。
 
 ============================================================
 三、Linux / macOS 手动编译&运行
@@ -120,6 +145,8 @@ java -Dfile.encoding=UTF-8 -cp bin AlgorithmRunner data/figure1.txt test/out_sam
 
 # GUI运行
 java -Dfile.encoding=UTF-8 -cp bin ui.MainFrame
+
+> 注：Linux/macOS没有bat脚本，无法直接使用run.bat；可使用jar命令运行GUI：java -jar TopoSortApp.jar
 
 ============================================================
 四、数据输入格式规范
@@ -150,7 +177,7 @@ JVM运行参数建议添加：
 六、干净环境解压运行提示【验收重点】
 ============================================================
 从提交压缩包解压之后，**必须进入解压出来的项目根目录 topological-sort/ 执行全部编译/运行命令，不要进入src子文件夹执行**。
-本readme文档满足T‑E6任务要求，在未安装IDE的干净环境下，可以按照本文档完成编译、测试、运行GUI与命令行程序。
+本readme文档满足T‑E6任务要求，在未安装IDE的干净环境下，可以按照本文档完成：直接运行jar/bat、编译源码、冒烟测试、运行GUI与命令行程序。
 
 ============================================================
 七、测试说明
@@ -166,23 +193,34 @@ JVM运行参数建议添加：
 八、常见问题 FAQ
 ============================================================
 Q1：提示文件找不到 data/figure1.txt
-A：必须在【项目根目录 topological-sort/】启动程序，不要进入src子目录运行；IDE检查工作目录配置。
+A：必须在【项目根目录 topological-sort/】启动程序，不要进入src子目录运行；IDE检查工作目录配置；使用jar/bat启动时确认data文件夹与TopoSortApp.jar同级。
 
 Q2：中文乱码
-A：运行时添加JVM参数 -Dfile.encoding=UTF-8；所有输入输出文件使用UTF‑8编码。
+A：运行时添加JVM参数 -Dfile.encoding=UTF-8；所有输入输出文件使用UTF‑8编码；bat脚本保存编码建议为ANSI。
 
-Q3：Linux/mac运行bat报错
-A：bat是Windows批处理，复制脚本内javac、java命令手动执行。
+Q3：双击run.bat提示找不到TopoSortApp.jar
+A：run.bat必须与TopoSortApp.jar放在同一个文件夹，不能分开存放。
 
-Q4：输出目录test不存在？
+Q4：提示“jar中没有主清单属性”
+A：打包时使用jar cfe命令指定主类ui.MainFrame，避免manifest.mf换行缺失问题。
+
+Q5：Linux/mac运行bat报错
+A：bat是Windows批处理，复制脚本内javac、java命令手动执行；GUI直接使用java‑jar运行jar包。
+
+Q6：输出目录test不存在？
 A：程序与脚本会自动创建test文件夹，无需手动新建。
 
-Q5：测试出现FAIL
+Q7：测试出现FAIL
 A：查看test目录下对应的txt日志，定位错误用例，排查代码或输入数据。
 
 ============================================================
 九、打包提交说明
 ============================================================
-课程任务最终提交压缩包命名为 groupXX.zip（例如group01.zip代表第1组），目录结构与本文件描述一致。
-源码提交git仓库不提交bin和out编译产物。
-本readme.txt内容与《用户使用手册》文档内容保持一致，互不冲突。
+课程任务最终提交压缩包命名为 groupXX.zip（例如group06.zip代表第6组）。
+✅提交包02‑项目源程序必须包含交付产物：
+src/（业务源码）、test/（测试源码）、data/、docs/、screenshots/、
+TopoSortApp.jar、run.bat、run_tests.bat、README.txt
+
+> 注意：bin、out、sources.txt为本地编译临时产物，**不要放进提交zip压缩包**。
+> jar包内仅包含src编译后的业务class；test仅上交源代码，不打入jar包。
+本readme.txt内容与《用户使用手册(T‑D8)》文档内容保持一致，互不冲突。
