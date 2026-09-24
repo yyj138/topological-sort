@@ -1,0 +1,6 @@
+screenshot-01-main.png：主界面全貌，包含菜单栏、工具栏、输入区、画布、结果列表和状态栏。
+screenshot-02-figure1.png：导入任务书图1数据，计算后显示多种拓扑排序结果与关系图。
+screenshot-03-curriculum.png：导入计算机系全系课程数据，绘制全系关系图。
+screenshot-04-cycle.png：输入含环图，系统弹出提示并红色高亮环路径。
+screenshot-05a-layout-layered.png：图1数据的分层布局效果。
+screenshot-05b-layout-circular.png：图1数据的环形布局效果。
