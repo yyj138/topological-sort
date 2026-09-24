@@ -49,17 +49,17 @@ MainController作为整个GUI层的中间层，主要方法如下：
 
 ```mermaid
 flowchart TD
-    A[用户点击计算] --> B[MainController校验输入非空]
+    A[点击计算] --> B[校验输入]
     B --> C{输入为空?}
-    C -->|是| D[弹窗提示请输入数据]
-    C -->|否| E[创建SwingWorker后台任务]
-    E --> F[调用D的DataParser解析文本构建Graph]
-    F --> G[调用A的AllTopoSorts枚举拓扑序]
-    G --> H{计算完成/取消/超时}
+    C -->|是| D[弹窗提示]
+    C -->|否| E[后台任务开始]
+    E --> F[解析文本建图]
+    F --> G[枚举拓扑序]
+    G --> H{结束/取消/超时}
     H --> I[回到UI线程]
-    I --> J[GraphPanel绘制关系图]
-    I --> K[ResultPanel分页显示结果]
-    I --> L[StatusBar更新节点数/边数/结果数]
+    I --> J[绘制关系图]
+    I --> K[显示结果列表]
+    I --> L[更新状态栏]
 ```
 
 计算过程中，主线程仍然可以响应用户操作，用户点击"取消计算"时设置取消标记，算法在每层递归前检查并停止。如果图中检测到环，状态栏提示"输入图含环，无合法拓扑排序"，GraphPanel用红色高亮环路径。
@@ -70,11 +70,11 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A[用户点击结果列表某行] --> B[ResultPanel计算全局序号]
-    B --> C[回调通知MainController]
-    C --> D[MainController调用GraphPanel.setSelectedOrder]
-    D --> E[画布按序号选颜色：绿/橙/紫/青/粉]
-    E --> F[节点填充对应颜色，右上角标注顺序序号]
+    A[点击结果行] --> B[计算全局序号]
+    B --> C[回调控制器]
+    C --> D[调用画布高亮]
+    D --> E[按序号选颜色]
+    E --> F[节点标注顺序号]
 ```
 
 切换不同结果时，GraphPanel自动清除上一次的高亮，按新结果重新绘制。用户双击某条结果，ResultPanel自动将该条序列拼接成字符串复制到剪贴板。
@@ -85,11 +85,11 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A[用户点击导出] --> B[MainController提取结果列表/是否完整/停止原因]
-    B --> C[弹出文件选择框选保存路径和格式]
-    C --> D[调用D的FileManager导出TXT/CSV]
-    D --> E[文件头写入：结果是否完整 + 停止原因]
-    E --> F[弹窗提示导出成功]
+    A[点击导出] --> B[提取结果和状态]
+    B --> C[选保存路径]
+    C --> D[调用导出模块]
+    D --> E[写入文件头信息]
+    E --> F[提示导出成功]
 ```
 
 导出时一定会在文件头写明结果状态，比如"结果完整，共X条"或"达到1000条上限，仅显示前1000条"，不会把截断的结果标成全部，符合接口契约要求。
